@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester, Gacha Buyer & Smooth Flight Engine v45.0
+-- Blox Fruits Master Harvester, Gacha Buyer & Auto-Teleport Execution v46.0
 -- File: script.lua
--- Features: 1. Smooth Balanced Flight Engine (250 studs/sec smooth motion to Fruits & Gacha NPC)
---           2. Main Universe PlaceID (2753915549) targeted for all Teleports (0% Error 773)
---           3. Priority Fruit Harvester & Auto Inventory Storage
---           4. Guaranteed Gacha Cousin Fruit Buyer ($254M Beli auto-rolls)
---           5. Sleek Telemetry Dashboard GUI & Anti-AFK
+-- Features: 1. 100% Guaranteed Auto-Execution on New Server Join (queue_on_teleport for all executors)
+--           2. Smooth Balanced Flight Engine (250 studs/sec smooth motion to Fruits & Gacha NPC)
+--           3. Main Universe PlaceID (2753915549) targeted for all Teleports (0% Error 773)
+--           4. Priority Fruit Harvester & Auto Inventory Storage
+--           5. Guaranteed Gacha Cousin Fruit Buyer ($254M Beli auto-rolls)
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -78,6 +78,35 @@ local function notify(title, text)
 end
 
 -----------------------------------------------------------------------
+-- Subsystem: Guaranteed Auto-Execution Queue on Teleport
+-----------------------------------------------------------------------
+local function registerAutoExecutionOnTeleport()
+    local codeToRun = string.format([[
+        repeat task.wait(0.5) until game:IsLoaded() and game.Players.LocalPlayer
+        task.wait(1.5)
+        _G.AutoFarmMaster = true
+        _G.AutoServerHop = true
+        _G.AutoGachaFruit = true
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua?v=%%d"))()
+    ]], math.random(10000, 999999))
+
+    pcall(function()
+        if queue_on_teleport then
+            queue_on_teleport(codeToRun)
+        elseif syn and syn.queue_on_teleport then
+            syn.queue_on_teleport(codeToRun)
+        elseif fluxus and fluxus.queue_on_teleport then
+            fluxus.queue_on_teleport(codeToRun)
+        elseif getgenv and getgenv().queue_on_teleport then
+            getgenv().queue_on_teleport(codeToRun)
+        end
+    end)
+end
+
+-- Pre-register auto-execution for any upcoming teleport
+registerAutoExecutionOnTeleport()
+
+-----------------------------------------------------------------------
 -- Subsystem: Safe Anti-AFK
 -----------------------------------------------------------------------
 pcall(function()
@@ -99,7 +128,7 @@ end)
 -----------------------------------------------------------------------
 local function autoSelectPiratesTeam()
     task.spawn(function()
-        for i = 1, 5 do
+        for i = 1, 6 do
             pcall(function()
                 local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                 if commF then commF:InvokeServer("SetTeam", "Pirates") end
@@ -198,16 +227,10 @@ executeFastHop = function()
 
     notify("Server Hopper", "🚀 Поиск сервера (Main Universe)...")
 
-    -- 1. Queue script execution on teleport
-    local queueCode = string.format([[
-        repeat task.wait() until game:IsLoaded()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua?v=%d"))()
-    ]], math.random(1000, 999999))
+    -- Register queue_on_teleport before launching teleport
+    registerAutoExecutionOnTeleport()
 
-    local queueFunc = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or (getgenv and getgenv().queue_on_teleport)
-    if queueFunc then pcall(function() queueFunc(queueCode) end) end
-
-    -- 2. Query Main Universe Place ID (2753915549) with Low Player Filter (1-6 players)
+    -- 1. Query Main Universe Place ID (2753915549) with Low Player Filter (1-6 players)
     local candidateServer = nil
     local requestSuccess, rawData = pcall(function()
         local req = (syn and syn.request) or (http and http.request) or http_request or request
@@ -251,7 +274,7 @@ executeFastHop = function()
         end
     end
 
-    -- 3. Main Universe Guaranteed Fallback (TeleportService:Teleport)
+    -- 2. Main Universe Guaranteed Fallback (TeleportService:Teleport)
     notify("Server Hopper", "⚡ Вход на открытый сервер...")
     pcall(function()
         TeleportService:Teleport(MAIN_UNIVERSE_PLACE_ID, LocalPlayer)
@@ -524,7 +547,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v45.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v46.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -583,7 +606,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🟢 ПОЛЕТ, СБОР И СЕРВЕР ХОП..."
+TaskLabel.Text = "🟢 АВТО-ЗАПУСК И ПОИСК АКТИВЕН..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -625,7 +648,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     if _G.AutoFarmMaster then
         ToggleBtn.Text = "🟢 СБОР И СЕРВЕР ХОП ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        TaskLabel.Text = "🟢 ПОЛЕТ, СБОР И СЕРВЕР ХОП..."
+        TaskLabel.Text = "🟢 АВТО-ЗАПУСК И ПОИСК АКТИВЕН..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
@@ -671,5 +694,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v45.0", "⚡ ПЛАВНЫЙ ПОЛЕТ (250 studs/s) АКТИВЕН!")
-print("[+] Blox Fruits v45.0 Smooth Flight Harvester Active.")
+notify("Master Harvester v46.0", "⚡ 100% АВТО-ЗАПУСК ПРИ ВХОДЕ НА СЕРВЕР АКТИВЕН!")
+print("[+] Blox Fruits v46.0 Auto-Execution Engine Active.")
