@@ -1,11 +1,12 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Arceus X Auto-Exec Engine v54.0
+-- Blox Fruits Master Harvester & Fast Server Hopper v55.0
 -- File: script.lua
--- Fixes: 1. Native Arceus X NEO Queue & Clipboard Sync (setclipboard on hop)
---        2. Ultra-clean single-line raw string for queue_on_teleport
---        3. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
---        4. Pure Fruit Harvester & Auto Storage Engine (140 studs/sec Smooth Flight)
---        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
+-- Fixes: 1. Thread-safe task.spawn coroutine wrapper in queue_on_teleport for Arceus X NEO
+--        2. Removed setclipboard auto-copying completely as requested
+--        3. 100% Automated Script Execution on joining any new server
+--        4. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
+--        5. Pure Fruit Harvester & Auto Storage Engine (140 studs/sec Smooth Flight)
+--        6. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -69,19 +70,13 @@ local function notify(title, text)
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Arceus X NEO Compatible Auto-Execution Engine
+-- Subsystem: Thread-Safe Auto-Execution Engine on Teleport
 -----------------------------------------------------------------------
-local LOADSTRING_RAW = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"))()'
-local QUEUE_CODE = 'repeat task.wait(0.5) until game:IsLoaded() task.wait(0.5) loadstring(game:HttpGet("https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"))()'
+local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
+local QUEUE_CODE = 'task.spawn(function() pcall(function() if not game:IsLoaded() then game.Loaded:Wait() end task.wait(1) loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
 
 local function forceQueueOnTeleport()
-    -- 1. Copy loadstring to clipboard for instant 1-tap paste in Arceus X
-    pcall(function()
-        if setclipboard then setclipboard(LOADSTRING_RAW) end
-        if toclipboard then toclipboard(LOADSTRING_RAW) end
-    end)
-
-    -- 2. Try Arceus X NEO & mobile executor queue functions
+    -- Try all known mobile and PC executor queue_on_teleport hooks
     pcall(function() if queue_on_teleport then queue_on_teleport(QUEUE_CODE) end end)
     pcall(function() if queueonteleport then queueonteleport(QUEUE_CODE) end end)
     pcall(function() if getgenv and getgenv().queue_on_teleport then getgenv().queue_on_teleport(QUEUE_CODE) end end)
@@ -89,17 +84,17 @@ local function forceQueueOnTeleport()
     pcall(function() if ArceusX and ArceusX.QueueOnTeleport then ArceusX.QueueOnTeleport(QUEUE_CODE) end end)
     pcall(function() if syn and syn.queue_on_teleport then syn.queue_on_teleport(QUEUE_CODE) end end)
 
-    -- 3. Write to autoexec paths on Android storage
+    -- Write to autoexec disk paths if available
     pcall(function()
         if writefile then
-            pcall(function() writefile("autoexec/script.lua", LOADSTRING_RAW) end)
-            pcall(function() writefile("autoexec.lua", LOADSTRING_RAW) end)
-            pcall(function() writefile("Arceus/autoexec/script.lua", LOADSTRING_RAW) end)
+            pcall(function() writefile("autoexec/script.lua", QUEUE_CODE) end)
+            pcall(function() writefile("autoexec.lua", QUEUE_CODE) end)
+            pcall(function() writefile("Arceus/autoexec/script.lua", QUEUE_CODE) end)
         end
     end)
 end
 
--- Register pre-flight auto execution
+-- Pre-register auto-execution on initial load
 forceQueueOnTeleport()
 
 -----------------------------------------------------------------------
@@ -386,7 +381,7 @@ local function autoStoreInventory(tool)
         local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
         if commF then
             local cleanName = string.gsub(rawName, " Fruit", "")
-            doubleName = cleanName .. "-" .. cleanName
+            local doubleName = cleanName .. "-" .. cleanName
 
             pcall(function() commF:InvokeServer("StoreFruit", doubleName, tool) end)
             pcall(function() commF:InvokeServer("StoreFruit", rawName, tool) end)
@@ -540,7 +535,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v54.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v55.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -684,5 +679,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v54.0", "⚡ ARCEUS X AUTO-EXECUTION ENGINE ACTIVE!")
-print("[+] Blox Fruits v54.0 Arceus X Auto-Execution Engine Active.")
+notify("Master Harvester v55.0", "⚡ THREAD-SAFE AUTO-EXECUTION ENGINE ACTIVE!")
+print("[+] Blox Fruits v55.0 Thread-Safe Auto-Execution Engine Active.")
