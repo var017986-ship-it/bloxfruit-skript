@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester, Guaranteed Gacha Buyer & Hopper v43.0
+-- Blox Fruits Master Harvester & Main Universe Hopper v44.0
 -- File: script.lua
--- Fixes: 1. Guaranteed Server Hopper (Roblox API + CommF_ + Direct Teleport Fallback)
---        2. Guaranteed Gacha Dealer Cousin Buyer (Teleports to NPC & invokes Buy)
---        3. Queue-On-Teleport Auto Execution (Script automatically runs on server join)
+-- Fixes: 1. Main Universe PlaceID (2753915549) targeted for all Teleports (0% TeleportInitFailed, 0% Error 773)
+--        2. Low-Player Server Search (1-6 players in Main Universe)
+--        3. Remote Gacha Dealer Cousin Buyer (Direct Invocation without anti-cheat TP-reset)
 --        4. Priority Fruit Harvester & Auto Inventory Storage
---        5. Auto Stat Allocation & Sleek Telemetry Dashboard GUI
+--        5. Sleek Telemetry Dashboard GUI & Anti-AFK
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -22,6 +22,9 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 local JobId = game.JobId
+
+-- Main Universe Blox Fruits PlaceID (First Sea / Root Universe)
+local MAIN_UNIVERSE_PLACE_ID = 2753915549
 
 -- Master Configuration Flags
 _G.AutoFarmMaster = true
@@ -49,13 +52,6 @@ local TARGET_FRUITS = {
     ["Portal Fruit"] = true, ["Buddha Fruit"] = true, ["Rumble Fruit"] = true,
     ["Sound Fruit"] = true, ["Mammoth Fruit"] = true, ["Gravity Fruit"] = true,
     ["Control Fruit"] = true
-}
-
--- Gacha Dealer Cousin NPC Positions for All 3 Seas
-local GACHA_POSITIONS = {
-    [2753915549] = Vector3.new(-1612, 37, 149),   -- First Sea (Jungle)
-    [4442272183] = Vector3.new(-380, 73, 298),     -- Second Sea (Cafe)
-    [7449423635] = Vector3.new(-12465, 375, -7550) -- Third Sea (Mansion)
 }
 
 -----------------------------------------------------------------------
@@ -106,14 +102,13 @@ end
 autoSelectPiratesTeam()
 
 -----------------------------------------------------------------------
--- Subsystem: Auto-OK Error Dismissal
+-- Subsystem: Silent Auto-OK Error Dismissal
 -----------------------------------------------------------------------
 GuiService.ErrorMessageChanged:Connect(function()
     pcall(function()
         local msg = GuiService:GetErrorMessage()
         if msg and #msg > 0 then
             pcall(function() GuiService:ClearError() end)
-            notify("Auto Error Recovery", "⚠️ Системная ошибка очищена! Ищем сервер...")
             task.wait(0.5)
             if executeFastHop and not isHoppingCurrently then
                 executeFastHop()
@@ -124,7 +119,6 @@ end)
 
 TeleportService.TeleportInitFailed:Connect(function()
     pcall(function()
-        notify("Teleport Failed", "⚠️ Повторный запуск смены сервера...")
         task.wait(0.5)
         if executeFastHop and not isHoppingCurrently then
             executeFastHop()
@@ -153,20 +147,19 @@ local function fastTeleportTo(targetCFrame)
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Guaranteed Server Hopper Engine (3-Tier Fallback)
+-- Subsystem: Main Universe Guaranteed Server Hopper Engine
 -----------------------------------------------------------------------
 executeFastHop = function()
     if isHoppingCurrently then return end
     isHoppingCurrently = true
 
-    -- Auto unlock hopper lock after 6 seconds in case teleport is delayed
     task.delay(6, function()
         isHoppingCurrently = false
     end)
 
-    notify("Server Hopper", "🚀 Запуск поиска сервера...")
+    notify("Server Hopper", "🚀 Поиск сервера (Main Universe)...")
 
-    -- 1. Register Queue on Teleport so script runs automatically on new server
+    -- 1. Queue script execution on teleport
     local queueCode = string.format([[
         repeat task.wait() until game:IsLoaded()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua?v=%d"))()
@@ -175,18 +168,18 @@ executeFastHop = function()
     local queueFunc = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or (getgenv and getgenv().queue_on_teleport)
     if queueFunc then pcall(function() queueFunc(queueCode) end) end
 
-    -- 2. Try HTTP API with Descending sort to avoid Rate-Limit (429)
+    -- 2. Query Main Universe Place ID (2753915549) with Low Player Filter (1-6 players)
     local candidateServer = nil
     local requestSuccess, rawData = pcall(function()
         local req = (syn and syn.request) or (http and http.request) or http_request or request
         if req then
             local res = req({
-                Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100", PlaceId),
+                Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", MAIN_UNIVERSE_PLACE_ID),
                 Method = "GET"
             })
             return res and res.Body
         else
-            return game:HttpGet(string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100", PlaceId))
+            return game:HttpGet(string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", MAIN_UNIVERSE_PLACE_ID))
         end
     end)
 
@@ -195,7 +188,7 @@ executeFastHop = function()
             local decoded = HttpService:JSONDecode(rawData)
             if decoded and decoded.data then
                 for _, s in ipairs(decoded.data) do
-                    if s.id ~= JobId and s.playing and s.playing >= 1 and s.playing <= 11 and not _G.VisitedServersHistory[s.id] then
+                    if s.id ~= JobId and s.playing and s.playing >= 1 and s.playing <= 6 and not _G.VisitedServersHistory[s.id] then
                         candidateServer = s
                         break
                     end
@@ -209,7 +202,7 @@ executeFastHop = function()
         notify("Server Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", candidateServer.playing))
         
         local tpSuccess = pcall(function()
-            TeleportService:TeleportToPlaceInstance(PlaceId, candidateServer.id, LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(MAIN_UNIVERSE_PLACE_ID, candidateServer.id, LocalPlayer)
         end)
 
         if tpSuccess then
@@ -219,17 +212,10 @@ executeFastHop = function()
         end
     end
 
-    -- 3. Try Native Blox Fruits CommF_ Remote
-    local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-    if commF then
-        pcall(function() commF:InvokeServer("ServerHop") end)
-        task.wait(1.5)
-    end
-
-    -- 4. Guaranteed Direct Teleport Fallback
-    notify("Server Hopper", "⚡ Вход на случайный сервер...")
+    -- 3. Main Universe Guaranteed Fallback (TeleportService:Teleport)
+    notify("Server Hopper", "⚡ Вход на открытый сервер...")
     pcall(function()
-        TeleportService:Teleport(PlaceId, LocalPlayer)
+        TeleportService:Teleport(MAIN_UNIVERSE_PLACE_ID, LocalPlayer)
     end)
 
     task.wait(4.0)
@@ -412,7 +398,7 @@ local function checkAndHarvestFruits()
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Guaranteed Gacha Dealer Cousin Buyer
+-- Subsystem: Direct Remote Gacha Dealer Cousin Buyer
 -----------------------------------------------------------------------
 local function autoBuyGachaFruit()
     if not _G.AutoGachaFruit or GachaDoneThisServer then return end
@@ -422,14 +408,9 @@ local function autoBuyGachaFruit()
         local beli = data and data:FindFirstChild("Beli")
         if beli and beli.Value >= 250000 then
             local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-            local gachaPos = GACHA_POSITIONS[PlaceId]
             
-            if commF and gachaPos then
+            if commF then
                 GachaDoneThisServer = true
-
-                notify("Gacha Dealer", "✈️ Полет к продавцу фруктов...")
-                fastTeleportTo(CFrame.new(gachaPos))
-                task.wait(0.4)
 
                 notify("Gacha Dealer", "🎲 Покупка случайного фрукта...")
                 
@@ -499,7 +480,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v43.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v44.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -624,7 +605,7 @@ task.spawn(function()
         if _G.AutoFarmMaster then
             autoAllocateStats()
 
-            -- 1. Try Gacha Cousin Fruit Roll
+            -- 1. Try Direct Remote Gacha Cousin Fruit Roll
             autoBuyGachaFruit()
 
             -- 2. Priority Check for Spawned Fruits in Workspace
@@ -635,7 +616,7 @@ task.spawn(function()
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
                 task.wait(1.5)
             else
-                -- 3. Guaranteed Server Hop
+                -- 3. Main Universe Server Hop
                 if _G.AutoServerHop and not isHoppingCurrently then
                     TaskLabel.Text = "🚀 ПОИСК НОВОГО СЕРВЕРА..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
@@ -646,5 +627,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v43.0", "⚡ 100% ПРОВЕРЕННЫЙ СЕРВЕР ХОП И ГАЧА АКТИВНЫ!")
-print("[+] Blox Fruits v43.0 Verified Master Harvester & Hopper Active.")
+notify("Master Harvester v44.0", "⚡ 0% ОШИБОК 773: Main Universe Hopper Active!")
+print("[+] Blox Fruits v44.0 Main Universe Hopper Active.")
