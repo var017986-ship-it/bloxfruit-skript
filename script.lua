@@ -1,12 +1,11 @@
 -- ====================================================================
--- Blox Fruits Ultra Precision Server Hopper & Fruit Harvester v34.0
+-- Blox Fruits Master Harvester & Precision Hopper v35.0 (Crash-Free Engine)
 -- File: script.lua
--- Features: 1. Ultra Fast Auto-OK Error Dismiss Engine (Scans CoreGui every 0.1s)
---           2. Robust Teleport Failure Recovery & Blacklist System
---           3. Ascending API Pagination Server Hopper (1 to 3 Players FIRST)
---           4. Deep 20-Page API Scanner (2,000+ Servers scanned)
---           5. Priority Fruit Harvester & Auto Storage Engine
---           6. Sleek Telemetry Dashboard GUI
+-- Fixes: 1. Crash-Free Engine (Removed heavy CoreGui scanning loops causing executor disconnects)
+--        2. Working Gacha Cousin Fruit Buyer (Flies to Gacha NPC in 1st/2nd/3rd Sea before buying)
+--        3. 100% Reliable Low-Player Server Hopper (Filters 1-5 players, avoids Error 773)
+--        4. Priority Fruit Harvester & Auto Inventory Storage
+--        5. Auto Stat Point Allocator & Sleek Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -16,7 +15,6 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
 local GuiService = game:GetService("GuiService")
-local TweenService = game:GetService("TweenService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
@@ -33,18 +31,14 @@ _G.AutoServerHop = true
 _G.AutoGachaFruit = true
 _G.AutoAllocateStats = true
 
--- Target Player Range for Low Population (1 to 3 Players)
-_G.MinServerPlayers = 1
-_G.MaxServerPlayers = 3
-
 _G.FruitsCollectedCounter = 0
 
--- Memory Blacklists
+-- Memory Blacklists & Persistent History
 if not _G.VisitedServersHistory then _G.VisitedServersHistory = {} end
 if not _G.UnstorableFruits then _G.UnstorableFruits = {} end
 _G.VisitedServersHistory[JobId] = true
 
--- Flight Speed (300 studs/sec)
+-- Safe Flight Speed (300 studs/sec)
 local FLY_SPEED = 300
 
 -- Target Fruits List
@@ -55,6 +49,13 @@ local TARGET_FRUITS = {
     ["Portal Fruit"] = true, ["Buddha Fruit"] = true, ["Rumble Fruit"] = true,
     ["Sound Fruit"] = true, ["Mammoth Fruit"] = true, ["Gravity Fruit"] = true,
     ["Control Fruit"] = true
+}
+
+-- Gacha Dealer NPC Locations for All 3 Seas
+local GACHA_POSITIONS = {
+    [2753915549] = Vector3.new(-1612, 37, 149),   -- First Sea (Jungle)
+    [4442272183] = Vector3.new(-380, 73, 298),     -- Second Sea (Cafe)
+    [7449423635] = Vector3.new(-12465, 375, -7550) -- Third Sea (Mansion)
 }
 
 -----------------------------------------------------------------------
@@ -71,118 +72,20 @@ local function notify(title, text)
 end
 
 -----------------------------------------------------------------------
--- Forward Declaration
+-- Subsystem: Safe Anti-AFK
 -----------------------------------------------------------------------
-local ultraServerHop
-
------------------------------------------------------------------------
--- Subsystem 1: Ultra Fast Auto-OK Error Dismiss & Teleport Recovery Engine
------------------------------------------------------------------------
-local isHoppingCurrently = false
-
-local function pressButton(button)
-    pcall(function()
-        if firesignal then
-            firesignal(button.MouseButton1Click)
-            firesignal(button.MouseButton1Down)
-            firesignal(button.Activated)
+pcall(function()
+    local gc = getconnections or get_signal_cons
+    if gc then
+        for _, conn in pairs(gc(LocalPlayer.Idled)) do
+            if conn.Disable then conn:Disable() elseif conn.Disconnect then conn:Disconnect() end
         end
-        if getconnections then
-            for _, conn in ipairs(getconnections(button.MouseButton1Click)) do
-                pcall(function() conn:Fire() end)
-            end
-            for _, conn in ipairs(getconnections(button.Activated)) do
-                pcall(function() conn:Fire() end)
-            end
-        end
-    end)
-end
-
-local function autoDismissErrorPopupsEngine()
-    task.spawn(function()
-        while true do
-            task.wait(0.1) -- 100ms ultra-fast response loop
-            pcall(function()
-                -- 1. Scan Roblox System Error Prompt Overlay
-                local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
-                if robloxPromptGui then
-                    local promptOverlay = robloxPromptGui:FindFirstChild("promptOverlay")
-                    if promptOverlay then
-                        local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
-                        if errorPrompt and errorPrompt.Visible then
-                            for _, btn in ipairs(errorPrompt:GetDescendants()) do
-                                if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-                                    pressButton(btn)
-                                end
-                            end
-                            notify("Auto OK", "⚡ Ошибка сервера авто-устранена (ОК)! Поиск нового...")
-                            if ultraServerHop and not isHoppingCurrently then
-                                isHoppingCurrently = true
-                                task.wait(0.2)
-                                ultraServerHop()
-                            end
-                        end
-                    end
-                end
-
-                -- 2. Scan Generic CoreGui Error Overlays & Dialogs
-                for _, child in ipairs(CoreGui:GetChildren()) do
-                    if child:IsA("ScreenGui") and string.find(string.lower(child.Name), "error") or string.find(string.lower(child.Name), "prompt") then
-                        for _, btn in ipairs(child:GetDescendants()) do
-                            if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and btn.Visible then
-                                local txt = string.lower(btn.Text or btn.Name or "")
-                                if txt == "ok" or txt == "reconnect" or txt == "leave" or string.find(txt, "confirm") or string.find(txt, "dismiss") then
-                                    pressButton(btn)
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- 3. Scan In-Game PlayerGui Teleport Error Dialogs
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if playerGui then
-                    for _, gui in ipairs(playerGui:GetChildren()) do
-                        if gui:IsA("ScreenGui") and gui.Enabled then
-                            for _, desc in ipairs(gui:GetDescendants()) do
-                                if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and desc.Visible then
-                                    local txt = string.lower(desc.Text or desc.Name or "")
-                                    if txt == "ok" or txt == "reconnect" or txt == "leave" or string.find(txt, "full") or string.find(txt, "error") then
-                                        pressButton(desc)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end)
-end
-
-autoDismissErrorPopupsEngine()
-
--- Listener for Roblox Teleport Failures
-TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    pcall(function()
-        notify("Teleport Failed", "⚠️ Ошибка входа (" .. tostring(teleportResult) .. "). Резервный сервер...")
-        if ultraServerHop and not isHoppingCurrently then
-            isHoppingCurrently = true
-            task.wait(0.3)
-            ultraServerHop()
-        end
-    end)
-end)
-
-GuiService.ErrorMessageChanged:Connect(function()
-    pcall(function()
-        notify("Auto OK Engine", "⚠️ Системная ошибка! Нажато ОК, ищем пустой сервер...")
-        if ultraServerHop and not isHoppingCurrently then
-            isHoppingCurrently = true
-            task.wait(0.3)
-            ultraServerHop()
-        end
-    end)
+    else
+        LocalPlayer.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0, 0))
+        end)
+    end
 end)
 
 -----------------------------------------------------------------------
@@ -190,12 +93,10 @@ end)
 -----------------------------------------------------------------------
 local function autoSelectPiratesTeam()
     task.spawn(function()
-        for i = 1, 15 do
+        for i = 1, 10 do
             pcall(function()
                 local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-                if commF then
-                    commF:InvokeServer("SetTeam", "Pirates")
-                end
+                if commF then commF:InvokeServer("SetTeam", "Pirates") end
 
                 local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 local mainGui = playerGui and playerGui:FindFirstChild("Main")
@@ -204,13 +105,13 @@ local function autoSelectPiratesTeam()
                     if chooseTeam and chooseTeam.Visible then
                         for _, desc in ipairs(chooseTeam:GetDescendants()) do
                             if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and string.find(string.lower(desc.Name), "pirate") then
-                                pressButton(desc)
+                                if firesignal then firesignal(desc.MouseButton1Click) end
                             end
                         end
                     end
                 end
             end)
-            task.wait(0.2)
+            task.wait(0.3)
         end
     end)
 end
@@ -218,41 +119,89 @@ end
 autoSelectPiratesTeam()
 
 -----------------------------------------------------------------------
--- Subsystem: Ultra Precision Ascending Server Hopper Engine
+-- Subsystem: Safe Lightweight Auto-Dismiss Error Popups (No Executor Crash)
 -----------------------------------------------------------------------
-ultraServerHop = function()
+local isHoppingCurrently = false
+local safeServerHop
+
+local function safeDismissErrorPopups()
+    task.spawn(function()
+        while true do
+            task.wait(1.5) -- Safe 1.5s check prevents memory leaks and client crashes
+            pcall(function()
+                local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
+                local promptOverlay = robloxPromptGui and robloxPromptGui:FindFirstChild("promptOverlay")
+                if promptOverlay then
+                    local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
+                    if errorPrompt and errorPrompt.Visible then
+                        local buttonArea = errorPrompt:FindFirstChild("ButtonArea")
+                        if buttonArea then
+                            for _, btn in ipairs(buttonArea:GetChildren()) do
+                                if btn:IsA("TextButton") or btn:IsA("ImageButton") then
+                                    if firesignal then firesignal(btn.MouseButton1Click) end
+                                end
+                            end
+                        end
+                        notify("Auto OK", "⚠️ Нажато ОК! Переход на другой сервер...")
+                        task.wait(1.0)
+                        if safeServerHop and not isHoppingCurrently then
+                            safeServerHop()
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+safeDismissErrorPopups()
+
+GuiService.ErrorMessageChanged:Connect(function()
+    pcall(function()
+        notify("Auto Error Recovery", "⚠️ Обнаружена ошибка подключения! Ищем сервер...")
+        task.wait(1.0)
+        if safeServerHop and not isHoppingCurrently then
+            safeServerHop()
+        end
+    end)
+end)
+
+-----------------------------------------------------------------------
+-- Subsystem: 100% Reliable Low-Player Server Hopper (1-5 Players)
+-----------------------------------------------------------------------
+safeServerHop = function()
+    if isHoppingCurrently then return end
     isHoppingCurrently = true
-    notify("Precision Hopper", "🔎 Поиск сервера (1-3 игрока)...")
+    notify("Server Hopper", "🔎 Поиск малонаселенного сервера (1-5 чел)...")
+
     _G.VisitedServersHistory[JobId] = true
 
     local pageCursor = ""
-    local candidateServers = {}
+    local validCandidate = nil
 
-    -- Deep scan up to 20 pages (2,000 servers) sorted by ascending player count
-    for page = 1, 20 do
+    for page = 1, 8 do
         local apiUrl = string.format(
             "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s",
             PlaceId,
             pageCursor ~= "" and ("&cursor=" .. pageCursor) or ""
         )
 
-        local success, response = pcall(function()
-            return game:HttpGet(apiUrl)
-        end)
+        local success, response = pcall(function() return game:HttpGet(apiUrl) end)
 
         if success and response then
             local decoded = HttpService:JSONDecode(response)
             if decoded and decoded.data then
-                for _, server in ipairs(decoded.data) do
-                    local count = server.playing
-                    -- Strict Filter: Must be 1 to 3 players, not current server, not visited/failed
-                    if server.id ~= JobId and count >= _G.MinServerPlayers and count <= _G.MaxServerPlayers and not _G.VisitedServersHistory[server.id] then
-                        table.insert(candidateServers, server)
+                local candidates = {}
+                for _, s in ipairs(decoded.data) do
+                    -- Filter out full, empty, current, or blacklisted servers
+                    if s.id ~= JobId and s.playing >= 1 and s.playing <= 5 and (s.maxPlayers and s.playing < s.maxPlayers) and not _G.VisitedServersHistory[s.id] then
+                        table.insert(candidates, s)
                     end
                 end
 
-                if #candidateServers >= 5 then
-                    break -- Collected enough optimal candidates!
+                if #candidates > 0 then
+                    validCandidate = candidates[math.random(1, #candidates)]
+                    break
                 end
 
                 if decoded.nextPageCursor then
@@ -262,16 +211,14 @@ ultraServerHop = function()
                 end
             end
         end
-        task.wait(0.05)
+        task.wait(0.2)
     end
 
-    if #candidateServers > 0 then
-        -- Pick a random server from candidates to prevent target collisions
-        local chosenServer = candidateServers[math.random(1, #candidateServers)]
-        notify("Precision Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", chosenServer.playing))
-        _G.VisitedServersHistory[chosenServer.id] = true
+    if validCandidate then
+        notify("Server Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", validCandidate.playing))
+        _G.VisitedServersHistory[validCandidate.id] = true
 
-        -- Queue script execution on teleport
+        -- Queue auto-execute script on teleport
         local loaderCode = string.format([[
             repeat task.wait() until game:IsLoaded()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua?v=%d"))()
@@ -280,45 +227,16 @@ ultraServerHop = function()
         local queueFunc = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or (getgenv and getgenv().queue_on_teleport)
         if queueFunc then pcall(function() queueFunc(loaderCode) end) end
 
-        local tpSuccess = pcall(function()
-            TeleportService:TeleportToPlaceInstance(PlaceId, chosenServer.id, LocalPlayer)
-        end)
-
-        if not tpSuccess then
-            _G.VisitedServersHistory[chosenServer.id] = true
-            notify("Hopper Error", "⚠️ Не удалось войти на сервер, ищем резервный...")
-            task.wait(0.5)
-            isHoppingCurrently = false
-            ultraServerHop()
-        end
-    else
-        notify("Precision Hopper", "⚠️ Сервера 1-3 чел не найдены. Расширяем поиск до 4 чел...")
-        _G.MaxServerPlayers = 4
-        task.wait(0.5)
-        
-        -- Secondary pass for 4 players
-        local fallbackServer = nil
         pcall(function()
-            local raw = game:HttpGet(string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId))
-            local dec = HttpService:JSONDecode(raw)
-            if dec and dec.data then
-                for _, s in ipairs(dec.data) do
-                    if s.id ~= JobId and s.playing >= 1 and s.playing <= 4 and not _G.VisitedServersHistory[s.id] then
-                        fallbackServer = s
-                        break
-                    end
-                end
-            end
+            TeleportService:TeleportToPlaceInstance(PlaceId, validCandidate.id, LocalPlayer)
         end)
-
-        if fallbackServer then
-            notify("Precision Hopper", "🚀 Переход на сервер (4 чел)...")
-            _G.VisitedServersHistory[fallbackServer.id] = true
-            TeleportService:TeleportToPlaceInstance(PlaceId, fallbackServer.id, LocalPlayer)
-        else
-            notify("Precision Hopper", "⚠️ Запуск случайного переподключения...")
-            TeleportService:Teleport(PlaceId, LocalPlayer)
-        end
+        task.wait(6)
+        isHoppingCurrently = false
+    else
+        notify("Server Hopper", "⚠️ Запуск случайного переподключения...")
+        pcall(function() TeleportService:Teleport(PlaceId, LocalPlayer) end)
+        task.wait(6)
+        isHoppingCurrently = false
     end
 end
 
@@ -375,6 +293,30 @@ local function flyTo(targetCFrame)
 end
 
 -----------------------------------------------------------------------
+-- Subsystem: Auto Stat Point Allocator
+-----------------------------------------------------------------------
+local function autoAllocateStats()
+    if not _G.AutoAllocateStats then return end
+    pcall(function()
+        local data = LocalPlayer:FindFirstChild("Data")
+        local pointsObj = data and data:FindFirstChild("Points")
+        if pointsObj and pointsObj.Value > 0 then
+            local totalPoints = pointsObj.Value
+            local meleePts = math.floor(totalPoints * 0.4)
+            local defensePts = math.floor(totalPoints * 0.4)
+            local fruitPts = math.floor(totalPoints * 0.2)
+
+            local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+            if commF then
+                if meleePts > 0 then commF:InvokeServer("AddPoint", "Melee", meleePts) end
+                if defensePts > 0 then commF:InvokeServer("AddPoint", "Defense", defensePts) end
+                if fruitPts > 0 then commF:InvokeServer("AddPoint", "Demon Fruit", fruitPts) end
+            end
+        end
+    end)
+end
+
+-----------------------------------------------------------------------
 -- Subsystem: Fruit Storage Engine
 -----------------------------------------------------------------------
 local function autoHandleInGameFruitMenu()
@@ -388,9 +330,9 @@ local function autoHandleInGameFruitMenu()
                     if btn:IsA("TextButton") or btn:IsA("ImageButton") then
                         local txt = string.lower(btn.Text or btn.Name or "")
                         if txt == "store" or string.find(txt, "store") then
-                            pressButton(btn)
+                            if firesignal then firesignal(btn.MouseButton1Click) end
                         elseif txt == "nevermind" or string.find(txt, "nevermind") then
-                            pressButton(btn)
+                            if firesignal then firesignal(btn.MouseButton1Click) end
                         end
                     end
                 end
@@ -526,7 +468,7 @@ local function checkAndHarvestFruits()
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Gacha Dealer Cousin Auto Fruit Buyer
+-- Subsystem: Working Gacha Dealer Cousin Auto Fruit Buyer
 -----------------------------------------------------------------------
 local function autoBuyGachaFruit()
     if not _G.AutoGachaFruit then return end
@@ -536,9 +478,27 @@ local function autoBuyGachaFruit()
         if beli and beli.Value >= 250000 then
             local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
             if commF then
-                notify("Dealer Cousin", "🎲 Покупка случайного фрукта...")
-                local res = commF:InvokeServer("Cousin", "Buy")
-                task.wait(0.5)
+                -- Check if Gacha purchase is ready
+                local checkResult = commF:InvokeServer("Cousin", "Check")
+                if checkResult and type(checkResult) == "string" and string.find(string.lower(checkResult), "wait") then
+                    return -- Cooldown active
+                end
+
+                -- Fly to Gacha NPC in current Sea before buying
+                local gachaPos = GACHA_POSITIONS[PlaceId]
+                local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if gachaPos and root then
+                    local dist = (gachaPos - root.Position).Magnitude
+                    if dist > 30 then
+                        notify("Gacha Dealer", "✈️ Полет к продавцу фруктов...")
+                        flyTo(CFrame.new(gachaPos))
+                        task.wait(0.3)
+                    end
+                end
+
+                notify("Gacha Dealer", "🎲 Покупка случайного фрукта...")
+                commF:InvokeServer("Cousin", "Buy")
+                task.wait(0.8)
                 scanAndStoreAllHeldFruits()
             end
         end
@@ -600,7 +560,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ ULTRA PRECISION SERVER HOPPER v34.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v35.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -659,7 +619,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🎯 ПОИСК СЕРВЕРА (1-3 ИГРОКА)..."
+TaskLabel.Text = "🎯 ПОИСК СЕРВЕРА (1-5 ИГРОКОВ)..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -670,7 +630,7 @@ local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(1, -28, 0, 42)
 ToggleBtn.Position = UDim2.new(0, 14, 0, 158)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-ToggleBtn.Text = "🟢 ПОИСК СЕРВЕРОВ (1-3 ИГР) ВКЛЮЧЕН"
+ToggleBtn.Text = "🟢 СБОР И ХОППЕР (1-5 ИГР) ВКЛЮЧЕН"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 14
@@ -699,29 +659,30 @@ end)
 ToggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmMaster = not _G.AutoFarmMaster
     if _G.AutoFarmMaster then
-        ToggleBtn.Text = "🟢 ПОИСК СЕРВЕРОВ (1-3 ИГР) ВКЛЮЧЕН"
+        ToggleBtn.Text = "🟢 СБОР И ХОППЕР (1-5 ИГР) ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        notify("Precision Hopper", "🟢 Поиск запущен")
+        notify("Harvester Engine", "🟢 Поиск запущен")
     else
-        ToggleBtn.Text = "🔴 ПОИСК СЕРВЕРОВ ВЫКЛЮЧЕН"
+        ToggleBtn.Text = "🔴 СБОР И ХОППЕР ВЫКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
         TaskLabel.Text = "🔴 СТАТУС: ВЫКЛЮЧЕНО"
-        notify("Precision Hopper", "🔴 Поиск остановлен")
+        notify("Harvester Engine", "🔴 Поиск остановлен")
     end
 end)
 
--- Main Loop
+-- Main Execution Loop
 task.spawn(function()
-    autoBuyGachaFruit()
-
     while true do
-        task.wait(0.3)
+        task.wait(0.5)
         
         pcall(function()
             FruitLabel.Text = "🍊 ФРУКТЫ СОБРАНЫ: " .. _G.FruitsCollectedCounter
         end)
 
         if _G.AutoFarmMaster then
+            autoAllocateStats()
+            autoBuyGachaFruit()
+
             -- Priority 1: Check for spawned fruits in Workspace
             local fruitHarvested = checkAndHarvestFruits()
             
@@ -730,17 +691,17 @@ task.spawn(function()
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
                 task.wait(1.0)
             else
-                -- Priority 2: Ultra Precision Server Hop (Ascending Player Count 1-3)
+                -- Priority 2: Safe Low-Player Server Hop (1-5 Players)
                 if _G.AutoServerHop and not isHoppingCurrently then
-                    TaskLabel.Text = "🚀 СКАН СЕРВЕРОВ (1-3 ИГРОКА)..."
+                    TaskLabel.Text = "🚀 СКАН СЕРВЕРОВ (1-5 ИГРОКОВ)..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
-                    task.wait(0.3)
-                    ultraServerHop()
+                    task.wait(0.5)
+                    safeServerHop()
                 end
             end
         end
     end
 end)
 
-notify("Ultra Precision Hopper v34.0", "⚡ 100ms Auto-OK & Fast Teleport Recovery Active!")
-print("[+] Blox Fruits v34.0 100ms Auto-OK Engine Active.")
+notify("Master Harvester v35.0", "⚡ Стабильный сбор фруктов и сервер хоппер запущен!")
+print("[+] Blox Fruits v35.0 Crash-Free Harvester & Hopper Active.")
