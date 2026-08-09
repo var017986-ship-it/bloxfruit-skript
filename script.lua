@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Gacha Auto-Buyer v39.0
+-- Blox Fruits Master Harvester & Precision Engine v40.0 (Ultra Optimized)
 -- File: script.lua
--- Fixes: 1. Bulletproof Auto-OK Error Dismiss Engine (Hides overlay & invokes ClearError + firesignal)
---        2. Gacha Cousin Auto-Buyer ($254M Beli auto-rolls with all remote signatures & NPC flight)
---        3. Continuous Native Blox Fruits Server Hopper (CommF_:InvokeServer("ServerHop"))
---        4. Priority Fruit Harvester & Auto Inventory Storage
---        5. Auto Stat Point Allocator & Sleek Telemetry Dashboard GUI
+-- Fixes: 1. Ultra Light Flight Engine (Removed heavy RunService.Stepped GetDescendants loops)
+--        2. Instant Fruit Collector (Teleports directly to fruit & stores immediately)
+--        3. Event-Driven Error Dismissal (Zero CPU lag / zero memory leaks)
+--        4. Smart Server Hopper (Only hops after fruit collection completes)
+--        5. Gacha Dealer Cousin Auto-Buyer ($254M Beli auto-rolls)
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -15,7 +15,6 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
 local GuiService = game:GetService("GuiService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local RunService = game:GetService("RunService")
@@ -33,13 +32,10 @@ _G.AutoAllocateStats = true
 
 _G.FruitsCollectedCounter = 0
 
--- Memory Blacklists & Persistent History
+-- Persistent Memory History
 if not _G.VisitedServersHistory then _G.VisitedServersHistory = {} end
 if not _G.UnstorableFruits then _G.UnstorableFruits = {} end
 _G.VisitedServersHistory[JobId] = true
-
--- Safe Flight Speed (300 studs/sec)
-local FLY_SPEED = 300
 
 -- Target Fruits List
 local TARGET_FRUITS = {
@@ -93,25 +89,12 @@ end)
 -----------------------------------------------------------------------
 local function autoSelectPiratesTeam()
     task.spawn(function()
-        for i = 1, 10 do
+        for i = 1, 6 do
             pcall(function()
                 local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
                 if commF then commF:InvokeServer("SetTeam", "Pirates") end
-
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                local mainGui = playerGui and playerGui:FindFirstChild("Main")
-                if mainGui then
-                    local chooseTeam = mainGui:FindFirstChild("ChooseTeam")
-                    if chooseTeam and chooseTeam.Visible then
-                        for _, desc in ipairs(chooseTeam:GetDescendants()) do
-                            if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and string.find(string.lower(desc.Name), "pirate") then
-                                if firesignal then firesignal(desc.MouseButton1Click) end
-                            end
-                        end
-                    end
-                end
             end)
-            task.wait(0.3)
+            task.wait(0.5)
         end
     end)
 end
@@ -119,72 +102,36 @@ end
 autoSelectPiratesTeam()
 
 -----------------------------------------------------------------------
--- Subsystem: Bulletproof Auto-OK Error Dismiss Engine
+-- Subsystem: Event-Driven Error Dismissal (Zero CPU Lag)
 -----------------------------------------------------------------------
 local isHoppingCurrently = false
-local executeFastHop
-
-local function safeAutoOKEngine()
-    task.spawn(function()
-        while true do
-            task.wait(0.3)
-            pcall(function()
-                -- Native GuiService ClearError
-                if GuiService and GuiService.ClearError then
-                    pcall(function() GuiService:ClearError() end)
-                end
-
-                local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
-                local promptOverlay = robloxPromptGui and robloxPromptGui:FindFirstChild("promptOverlay")
-                if promptOverlay then
-                    local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
-                    if errorPrompt and errorPrompt.Visible then
-                        -- Hide prompt immediately
-                        errorPrompt.Visible = false
-
-                        -- Execute click signals on all buttons inside prompt
-                        for _, btn in ipairs(errorPrompt:GetDescendants()) do
-                            if btn:IsA("GuiButton") or btn:IsA("TextButton") or btn:IsA("ImageButton") then
-                                if firesignal then
-                                    firesignal(btn.MouseButton1Click)
-                                    firesignal(btn.Activated)
-                                end
-                                if getconnections then
-                                    for _, c in ipairs(getconnections(btn.MouseButton1Click)) do c:Fire() end
-                                    for _, c in ipairs(getconnections(btn.Activated)) do c:Fire() end
-                                end
-                            end
-                        end
-
-                        notify("Auto OK", "⚡ Ошибка сервера устранена! Переход...")
-                        task.wait(0.3)
-                        if executeFastHop then executeFastHop() end
-                    end
-                end
-            end)
-        end
-    end)
-end
-
-safeAutoOKEngine()
+local executeServerHop
 
 GuiService.ErrorMessageChanged:Connect(function()
     pcall(function()
         if GuiService and GuiService.ClearError then GuiService:ClearError() end
         notify("Auto Error Recovery", "⚠️ Системная ошибка очищена! Ищем сервер...")
-        task.wait(0.3)
-        if executeFastHop then executeFastHop() end
+        task.wait(0.5)
+        if executeServerHop then executeServerHop() end
+    end)
+end)
+
+TeleportService.TeleportInitFailed:Connect(function()
+    pcall(function()
+        notify("Teleport Failed", "⚠️ Перезапуск поиска нового сервера...")
+        task.wait(0.5)
+        if executeServerHop then executeServerHop() end
     end)
 end)
 
 -----------------------------------------------------------------------
--- Subsystem: Fast Continuous Native Server Hopper (CommF_ Engine)
+-- Subsystem: Native Server Hopper Engine (CommF_)
 -----------------------------------------------------------------------
-executeFastHop = function()
+executeServerHop = function()
     if isHoppingCurrently then return end
     isHoppingCurrently = true
 
-    task.delay(4, function()
+    task.delay(5, function()
         isHoppingCurrently = false
     end)
 
@@ -205,14 +152,14 @@ executeFastHop = function()
         end)
     end
 
-    task.wait(3.5)
+    task.wait(4)
     isHoppingCurrently = false
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Noclip Physics Flight Engine (300 studs/sec)
+-- Subsystem: Lightweight Smooth Teleport Flight Engine
 -----------------------------------------------------------------------
-local function flyTo(targetCFrame)
+local function fastTeleportTo(targetCFrame)
     local char = LocalPlayer.Character
     if not char then return false end
 
@@ -220,42 +167,31 @@ local function flyTo(targetCFrame)
     local humanoid = char:FindFirstChildWhichIsA("Humanoid")
     if not root or not humanoid then return false end
 
-    local targetPos = targetCFrame.Position
-    local startPos = root.Position
-    local distance = (targetPos - startPos).Magnitude
-
-    if distance < 10 then
-        root.CFrame = targetCFrame
-        return true
-    end
-
-    local noclipConnection = RunService.Stepped:Connect(function()
-        if LocalPlayer.Character then
-            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
+    -- Disable collisions once (0 CPU overhead)
+    pcall(function()
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
         end
     end)
 
-    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    local targetPos = targetCFrame.Position
+    local startPos = root.Position
+    local dist = (targetPos - startPos).Magnitude
 
-    local bv = Instance.new("BodyVelocity")
-    bv.Velocity = (targetPos - root.Position).Unit * FLY_SPEED
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Parent = root
-
-    local startTime = tick()
-    while char and root and (targetPos - root.Position).Magnitude > 8 and (tick() - startTime) < 25 do
-        bv.Velocity = (targetPos - root.Position).Unit * FLY_SPEED
-        root.CFrame = CFrame.new(root.Position, targetPos)
-        task.wait()
+    if dist < 30 then
+        root.CFrame = targetCFrame
+        return true
     end
 
-    if bv then bv:Destroy() end
-    if noclipConnection then noclipConnection:Disconnect() end
-    humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    -- Smooth linear interpolation without heavy per-frame loops
+    local steps = math.clamp(math.floor(dist / 150), 2, 8)
+    for i = 1, steps do
+        if not LocalPlayer.Character then break end
+        root.CFrame = CFrame.new(startPos:Lerp(targetPos, i / steps))
+        task.wait(0.04)
+    end
 
     root.CFrame = targetCFrame
     return true
@@ -329,7 +265,7 @@ local function autoStoreInventory(tool)
         
         if humanoid and tool.Parent == LocalPlayer.Backpack then
             humanoid:EquipTool(tool)
-            task.wait(0.2)
+            task.wait(0.15)
         end
 
         autoHandleInGameFruitMenu()
@@ -413,9 +349,9 @@ local function checkAndHarvestFruits()
     if fruitFound then
         local handle = fruitFound:FindFirstChild("Handle") or fruitFound:FindFirstChildWhichIsA("BasePart")
         if handle then
-            notify("🍊 Фрукт найден!", "Полет к " .. fruitFound.Name)
-            flyTo(handle.CFrame)
-            task.wait(0.2)
+            notify("🍊 Фрукт найден!", "Телепорт к " .. fruitFound.Name)
+            fastTeleportTo(handle.CFrame)
+            task.wait(0.1)
             root.CFrame = handle.CFrame
             
             local prompt = fruitFound:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -427,7 +363,7 @@ local function checkAndHarvestFruits()
                 firetouchinterest(root, handle, 1)
             end
 
-            task.wait(0.3)
+            task.wait(0.2)
             scanAndStoreAllHeldFruits()
             return true
         end
@@ -447,23 +383,13 @@ local function autoBuyGachaFruit()
         if beli and beli.Value >= 250000 then
             local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
             if commF then
-                -- Fly to Gacha NPC in current Sea if far away
-                local gachaPos = GACHA_POSITIONS[PlaceId]
-                local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if gachaPos and root and (gachaPos - root.Position).Magnitude > 30 then
-                    notify("Gacha Dealer", "✈️ Полет к продавцу фруктов...")
-                    flyTo(CFrame.new(gachaPos))
-                    task.wait(0.3)
-                end
-
                 notify("Gacha Dealer", "🎲 Покупка случайного фрукта...")
                 
-                -- Invoke all Blox Fruits Gacha payment signatures
                 pcall(function() commF:InvokeServer("Cousin", "Buy", "Money") end)
                 pcall(function() commF:InvokeServer("Cousin", "Buy", true) end)
                 pcall(function() commF:InvokeServer("Cousin", "Buy") end)
 
-                task.wait(0.8)
+                task.wait(0.5)
                 scanAndStoreAllHeldFruits()
             end
         end
@@ -525,7 +451,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v39.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v40.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -584,7 +510,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР И ГАЧА..."
+TaskLabel.Text = "⚡ ОПТИМИЗИРОВАННЫЙ СБОР И ХОП..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -595,7 +521,7 @@ local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(1, -28, 0, 42)
 ToggleBtn.Position = UDim2.new(0, 14, 0, 158)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-ToggleBtn.Text = "🟢 АВТО-ХОППЕР И ГАЧА ВКЛЮЧЕН"
+ToggleBtn.Text = "🟢 АВТО-ХОППЕР И СБОР ВКЛЮЧЕН"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 14
@@ -624,13 +550,13 @@ end)
 ToggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmMaster = not _G.AutoFarmMaster
     if _G.AutoFarmMaster then
-        ToggleBtn.Text = "🟢 АВТО-ХОППЕР И ГАЧА ВКЛЮЧЕН"
+        ToggleBtn.Text = "🟢 АВТО-ХОППЕР И СБОР ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР И ГАЧА..."
+        TaskLabel.Text = "⚡ ОПТИМИЗИРОВАННЫЙ СБОР И ХОП..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
-        ToggleBtn.Text = "🔴 СБОР И ГАЧА ВЫКЛЮЧЕН"
+        ToggleBtn.Text = "🔴 СБОР И ХОППЕР ВЫКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
         TaskLabel.Text = "🔴 СТАТУС: ВЫКЛЮЧЕНО"
         TaskLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -638,10 +564,10 @@ ToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Main Execution Loop
+-- Main Execution Loop (Ultra Lightweight 1.0s interval)
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(1.0)
         
         pcall(function()
             FruitLabel.Text = "🍊 ФРУКТЫ СОБРАНЫ: " .. _G.FruitsCollectedCounter
@@ -657,18 +583,18 @@ task.spawn(function()
             if fruitHarvested then
                 TaskLabel.Text = "🍊 ФРУКТ СОБРАН И СОХРАНЕН!"
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
-                task.wait(1.0)
+                task.wait(1.5)
             else
-                -- Priority 2: Native Continuous Server Hop
+                -- Priority 2: Native Server Hop
                 if _G.AutoServerHop and not isHoppingCurrently then
                     TaskLabel.Text = "🚀 ПОИСК НОВОГО СЕРВЕРА..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
-                    executeFastHop()
+                    executeServerHop()
                 end
             end
         end
     end
 end)
 
-notify("Master Harvester v39.0", "⚡ Bulletproof Auto-OK & Gacha Spin Active!")
-print("[+] Blox Fruits v39.0 Bulletproof Auto-OK & Gacha Spin Active.")
+notify("Harvester & Hopper v40.0", "⚡ 100% Легкий и супер-быстрый сбор активен!")
+print("[+] Blox Fruits v40.0 Ultra Optimized Harvester Active.")
