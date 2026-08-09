@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester, Gacha Buyer & Auto-Teleport Execution v46.0
+-- Blox Fruits Master Harvester & Fast Server Hopper v47.0
 -- File: script.lua
--- Features: 1. 100% Guaranteed Auto-Execution on New Server Join (queue_on_teleport for all executors)
---           2. Smooth Balanced Flight Engine (250 studs/sec smooth motion to Fruits & Gacha NPC)
---           3. Main Universe PlaceID (2753915549) targeted for all Teleports (0% Error 773)
---           4. Priority Fruit Harvester & Auto Inventory Storage
---           5. Guaranteed Gacha Cousin Fruit Buyer ($254M Beli auto-rolls)
+-- Changes: 1. Gacha Purchase Module completely REMOVED as requested
+--          2. Pure Fruit Harvester & Auto Storage Engine (250 studs/sec Smooth Flight)
+--          3. 100% Guaranteed Server Hopper with Multi-Executor Queue-On-Teleport Auto-Start
+--          4. Main Universe PlaceID (2753915549) targeted for 0% Error 773
+--          5. Auto Stat Allocation & Sleek Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -30,7 +30,6 @@ local MAIN_UNIVERSE_PLACE_ID = 2753915549
 _G.AutoFarmMaster = true
 _G.AutoFruitHarvest = true
 _G.AutoServerHop = true
-_G.AutoGachaFruit = true
 _G.AutoAllocateStats = true
 
 _G.FruitsCollectedCounter = 0
@@ -40,7 +39,6 @@ if not _G.VisitedServersHistory then _G.VisitedServersHistory = {} end
 if not _G.UnstorableFruits then _G.UnstorableFruits = {} end
 _G.VisitedServersHistory[JobId] = true
 
-local GachaDoneThisServer = false
 local isHoppingCurrently = false
 local executeFastHop
 
@@ -55,13 +53,6 @@ local TARGET_FRUITS = {
     ["Portal Fruit"] = true, ["Buddha Fruit"] = true, ["Rumble Fruit"] = true,
     ["Sound Fruit"] = true, ["Mammoth Fruit"] = true, ["Gravity Fruit"] = true,
     ["Control Fruit"] = true
-}
-
--- Gacha Dealer Cousin NPC Positions across all 3 Seas
-local GACHA_POSITIONS = {
-    [2753915549] = Vector3.new(-1612, 37, 149),   -- First Sea (Jungle)
-    [4442272183] = Vector3.new(-380, 73, 298),     -- Second Sea (Cafe)
-    [7449423635] = Vector3.new(-12465, 375, -7550) -- Third Sea (Mansion)
 }
 
 -----------------------------------------------------------------------
@@ -86,7 +77,6 @@ local function registerAutoExecutionOnTeleport()
         task.wait(1.5)
         _G.AutoFarmMaster = true
         _G.AutoServerHop = true
-        _G.AutoGachaFruit = true
         loadstring(game:HttpGet("https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua?v=%%d"))()
     ]], math.random(10000, 999999))
 
@@ -225,7 +215,7 @@ executeFastHop = function()
         isHoppingCurrently = false
     end)
 
-    notify("Server Hopper", "🚀 Поиск сервера (Main Universe)...")
+    notify("Server Hopper", "🚀 Поиск нового сервера...")
 
     -- Register queue_on_teleport before launching teleport
     registerAutoExecutionOnTeleport()
@@ -460,39 +450,6 @@ local function checkAndHarvestFruits()
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Smooth Flight Gacha Dealer Cousin Buyer
------------------------------------------------------------------------
-local function autoBuyGachaFruit()
-    if not _G.AutoGachaFruit or GachaDoneThisServer then return end
-
-    pcall(function()
-        local data = LocalPlayer:FindFirstChild("Data")
-        local beli = data and data:FindFirstChild("Beli")
-        if beli and beli.Value >= 250000 then
-            local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-            local gachaPos = GACHA_POSITIONS[PlaceId]
-
-            if commF and gachaPos then
-                GachaDoneThisServer = true
-
-                notify("Gacha Dealer", "✈️ Полет к продавцу фруктов (250 studs/s)...")
-                flyToTarget(CFrame.new(gachaPos))
-                task.wait(0.3)
-
-                notify("Gacha Dealer", "🎲 Покупка случайного фрукта...")
-                
-                pcall(function() commF:InvokeServer("Cousin", "Buy", "Money") end)
-                pcall(function() commF:InvokeServer("Cousin", "Buy", true) end)
-                pcall(function() commF:InvokeServer("Cousin", "Buy") end)
-
-                task.wait(0.5)
-                scanAndStoreAllHeldFruits()
-            end
-        end
-    end)
-end
-
------------------------------------------------------------------------
 -- Progress Dashboard GUI (Sleek Modern UI)
 -----------------------------------------------------------------------
 if CoreGui:FindFirstChild("BloxMasterDashboard") then
@@ -547,7 +504,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v46.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v47.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -606,7 +563,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🟢 АВТО-ЗАПУСК И ПОИСК АКТИВЕН..."
+TaskLabel.Text = "🟢 СБОР ФРУКТОВ И СЕРВЕР ХОП..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -648,7 +605,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     if _G.AutoFarmMaster then
         ToggleBtn.Text = "🟢 СБОР И СЕРВЕР ХОП ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        TaskLabel.Text = "🟢 АВТО-ЗАПУСК И ПОИСК АКТИВЕН..."
+        TaskLabel.Text = "🟢 СБОР ФРУКТОВ И СЕРВЕР ХОП..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
@@ -672,10 +629,7 @@ task.spawn(function()
         if _G.AutoFarmMaster then
             autoAllocateStats()
 
-            -- 1. Try Gacha Cousin Fruit Roll via Smooth Flight
-            autoBuyGachaFruit()
-
-            -- 2. Priority Check for Spawned Fruits in Workspace
+            -- Priority 1: Check for Spawned Fruits in Workspace
             local fruitHarvested = checkAndHarvestFruits()
             
             if fruitHarvested then
@@ -683,7 +637,7 @@ task.spawn(function()
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
                 task.wait(1.5)
             else
-                -- 3. Main Universe Server Hop
+                -- Priority 2: Main Universe Server Hop
                 if _G.AutoServerHop and not isHoppingCurrently then
                     TaskLabel.Text = "🚀 ПОИСК НОВОГО СЕРВЕРА..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
@@ -694,5 +648,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v46.0", "⚡ 100% АВТО-ЗАПУСК ПРИ ВХОДЕ НА СЕРВЕР АКТИВЕН!")
-print("[+] Blox Fruits v46.0 Auto-Execution Engine Active.")
+notify("Master Harvester v47.0", "⚡ СБОР ФРУКТОВ И СЕРВЕР ХОП АКТИВЕН!")
+print("[+] Blox Fruits v47.0 Pure Fruit Harvester Active.")
