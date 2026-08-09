@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Fast Server Hopper v49.0
+-- Blox Fruits Master Harvester & Fast Server Hopper v50.0
 -- File: script.lua
--- Fixes: 1. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
---        2. Continuous GUI button click + CommF_ SetTeam remote invocation
---        3. 100% Guaranteed Queue-On-Teleport auto-restarts script on server change
---        4. Pure Fruit Harvester & Auto Storage Engine (250 studs/sec Smooth Flight)
---        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
+-- Changes: 1. Calibrated Slower Flight Speed (140 studs/sec smooth motion to prevent anti-cheat setbacks)
+--          2. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
+--          3. 100% Guaranteed Queue-On-Teleport auto-restarts script on server change
+--          4. Pure Fruit Harvester & Auto Storage Engine
+--          5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -42,8 +42,8 @@ _G.VisitedServersHistory[JobId] = true
 local isHoppingCurrently = false
 local executeFastHop
 
--- Flight Speed Constant (250 studs/sec - Smooth & Anti-Cheat Safe)
-local FLY_SPEED = 250
+-- Calibrated Flight Speed Constant (140 studs/sec - Slower & Ultra Smooth)
+local FLY_SPEED = 140
 
 -- Target Fruits List
 local TARGET_FRUITS = {
@@ -182,7 +182,7 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 -----------------------------------------------------------------------
--- Subsystem: Smooth Balanced Flight Engine (250 studs/sec)
+-- Subsystem: Calibrated Slower Flight Engine (140 studs/sec)
 -----------------------------------------------------------------------
 local function flyToTarget(targetCFrame)
     local char = LocalPlayer.Character
@@ -207,8 +207,8 @@ local function flyToTarget(targetCFrame)
         end
     end)
 
-    -- Calculate steps for smooth 250 studs/sec speed
-    local travelTime = math.clamp(distance / FLY_SPEED, 0.2, 12.0)
+    -- Calculate steps for calibrated 140 studs/sec speed
+    local travelTime = math.clamp(distance / FLY_SPEED, 0.3, 18.0)
     local steps = math.floor(travelTime / 0.03)
 
     for i = 1, steps do
@@ -530,7 +530,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v49.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v50.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -589,7 +589,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🟢 СБОР ФРУКТОВ И СЕРВЕР ХОП..."
+TaskLabel.Text = "🟢 ПЛАВНЫЙ СБОР И СЕРВЕР ХОП..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -631,7 +631,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     if _G.AutoFarmMaster then
         ToggleBtn.Text = "🟢 СБОР И СЕРВЕР ХОП ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        TaskLabel.Text = "🟢 СБОР ФРУКТОВ И СЕРВЕР ХОП..."
+        TaskLabel.Text = "🟢 ПЛАВНЫЙ СБОР И СЕРВЕР ХОП..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
@@ -674,5 +674,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v49.0", "⚡ АВТО-ВЫБОР КОМАНДЫ PIRATES АКТИВЕН!")
-print("[+] Blox Fruits v49.0 Auto Team Auto-Select Active.")
+notify("Master Harvester v50.0", "⚡ СКОРОСТЬ ПОЛЕТА УМЕНЬШЕНА (140 studs/s)!")
+print("[+] Blox Fruits v50.0 Calibrated Flight Speed Active.")
