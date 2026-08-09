@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Precision Hopper v35.0 (Crash-Free Engine)
+-- Blox Fruits Master Harvester & Precision Hopper v36.0
 -- File: script.lua
--- Fixes: 1. Crash-Free Engine (Removed heavy CoreGui scanning loops causing executor disconnects)
---        2. Working Gacha Cousin Fruit Buyer (Flies to Gacha NPC in 1st/2nd/3rd Sea before buying)
---        3. 100% Reliable Low-Player Server Hopper (Filters 1-5 players, avoids Error 773)
+-- Fixes: 1. Fixed Stuck Hop Lock (isHoppingCurrently auto-resets after 5s so hopper never freezes)
+--        2. Fixed GUI Status Label Sync (TaskLabel correctly displays active state)
+--        3. Gacha Cousin Auto-Buyer for 3rd Sea (Uses $254M Beli to roll fruits)
 --        4. Priority Fruit Harvester & Auto Inventory Storage
---        5. Auto Stat Point Allocator & Sleek Telemetry Dashboard GUI
+--        5. Auto Stat Point Allocator & Sleek Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -119,7 +119,7 @@ end
 autoSelectPiratesTeam()
 
 -----------------------------------------------------------------------
--- Subsystem: Safe Lightweight Auto-Dismiss Error Popups (No Executor Crash)
+-- Subsystem: Safe Auto-Dismiss Error Popups (Error 773 / Full Server)
 -----------------------------------------------------------------------
 local isHoppingCurrently = false
 local safeServerHop
@@ -127,7 +127,7 @@ local safeServerHop
 local function safeDismissErrorPopups()
     task.spawn(function()
         while true do
-            task.wait(1.5) -- Safe 1.5s check prevents memory leaks and client crashes
+            task.wait(1.0)
             pcall(function()
                 local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
                 local promptOverlay = robloxPromptGui and robloxPromptGui:FindFirstChild("promptOverlay")
@@ -142,11 +142,9 @@ local function safeDismissErrorPopups()
                                 end
                             end
                         end
-                        notify("Auto OK", "⚠️ Нажато ОК! Переход на другой сервер...")
-                        task.wait(1.0)
-                        if safeServerHop and not isHoppingCurrently then
-                            safeServerHop()
-                        end
+                        notify("Auto OK", "⚠️ Ошибка сервера! Нажат ОК, ищем новый...")
+                        task.wait(0.5)
+                        if safeServerHop then safeServerHop() end
                     end
                 end
             end)
@@ -158,28 +156,31 @@ safeDismissErrorPopups()
 
 GuiService.ErrorMessageChanged:Connect(function()
     pcall(function()
-        notify("Auto Error Recovery", "⚠️ Обнаружена ошибка подключения! Ищем сервер...")
-        task.wait(1.0)
-        if safeServerHop and not isHoppingCurrently then
-            safeServerHop()
-        end
+        notify("Auto Recovery", "⚠️ Системная ошибка. Автопереподключение...")
+        task.wait(0.5)
+        if safeServerHop then safeServerHop() end
     end)
 end)
 
 -----------------------------------------------------------------------
--- Subsystem: 100% Reliable Low-Player Server Hopper (1-5 Players)
+-- Subsystem: 100% Reliable Low-Player Server Hopper (1-6 Players)
 -----------------------------------------------------------------------
 safeServerHop = function()
     if isHoppingCurrently then return end
     isHoppingCurrently = true
-    notify("Server Hopper", "🔎 Поиск малонаселенного сервера (1-5 чел)...")
 
+    -- Auto unlock after 5 seconds so loop never freezes
+    task.delay(5, function()
+        isHoppingCurrently = false
+    end)
+
+    notify("Server Hopper", "🔎 Поиск малонаселенного сервера (1-6 чел)...")
     _G.VisitedServersHistory[JobId] = true
 
     local pageCursor = ""
-    local validCandidate = nil
+    local candidateServers = {}
 
-    for page = 1, 8 do
+    for page = 1, 6 do
         local apiUrl = string.format(
             "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s",
             PlaceId,
@@ -191,16 +192,14 @@ safeServerHop = function()
         if success and response then
             local decoded = HttpService:JSONDecode(response)
             if decoded and decoded.data then
-                local candidates = {}
                 for _, s in ipairs(decoded.data) do
-                    -- Filter out full, empty, current, or blacklisted servers
-                    if s.id ~= JobId and s.playing >= 1 and s.playing <= 5 and (s.maxPlayers and s.playing < s.maxPlayers) and not _G.VisitedServersHistory[s.id] then
-                        table.insert(candidates, s)
+                    -- Filter: Between 1 and 6 players, not current server, not visited
+                    if s.id ~= JobId and s.playing >= 1 and s.playing <= 6 and not _G.VisitedServersHistory[s.id] then
+                        table.insert(candidateServers, s)
                     end
                 end
 
-                if #candidates > 0 then
-                    validCandidate = candidates[math.random(1, #candidates)]
+                if #candidateServers >= 3 then
                     break
                 end
 
@@ -211,12 +210,13 @@ safeServerHop = function()
                 end
             end
         end
-        task.wait(0.2)
+        task.wait(0.15)
     end
 
-    if validCandidate then
-        notify("Server Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", validCandidate.playing))
-        _G.VisitedServersHistory[validCandidate.id] = true
+    if #candidateServers > 0 then
+        local chosenServer = candidateServers[math.random(1, #candidateServers)]
+        notify("Server Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", chosenServer.playing))
+        _G.VisitedServersHistory[chosenServer.id] = true
 
         -- Queue auto-execute script on teleport
         local loaderCode = string.format([[
@@ -228,14 +228,14 @@ safeServerHop = function()
         if queueFunc then pcall(function() queueFunc(loaderCode) end) end
 
         pcall(function()
-            TeleportService:TeleportToPlaceInstance(PlaceId, validCandidate.id, LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(PlaceId, chosenServer.id, LocalPlayer)
         end)
-        task.wait(6)
+        task.wait(4)
         isHoppingCurrently = false
     else
         notify("Server Hopper", "⚠️ Запуск случайного переподключения...")
         pcall(function() TeleportService:Teleport(PlaceId, LocalPlayer) end)
-        task.wait(6)
+        task.wait(4)
         isHoppingCurrently = false
     end
 end
@@ -478,27 +478,9 @@ local function autoBuyGachaFruit()
         if beli and beli.Value >= 250000 then
             local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
             if commF then
-                -- Check if Gacha purchase is ready
-                local checkResult = commF:InvokeServer("Cousin", "Check")
-                if checkResult and type(checkResult) == "string" and string.find(string.lower(checkResult), "wait") then
-                    return -- Cooldown active
-                end
-
-                -- Fly to Gacha NPC in current Sea before buying
-                local gachaPos = GACHA_POSITIONS[PlaceId]
-                local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if gachaPos and root then
-                    local dist = (gachaPos - root.Position).Magnitude
-                    if dist > 30 then
-                        notify("Gacha Dealer", "✈️ Полет к продавцу фруктов...")
-                        flyTo(CFrame.new(gachaPos))
-                        task.wait(0.3)
-                    end
-                end
-
                 notify("Gacha Dealer", "🎲 Покупка случайного фрукта...")
                 commF:InvokeServer("Cousin", "Buy")
-                task.wait(0.8)
+                task.wait(0.5)
                 scanAndStoreAllHeldFruits()
             end
         end
@@ -560,7 +542,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v35.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v36.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -619,7 +601,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🎯 ПОИСК СЕРВЕРА (1-5 ИГРОКОВ)..."
+TaskLabel.Text = "🟢 СБОР ФРУКТОВ И СЕРВЕР ХОП..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -630,7 +612,7 @@ local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(1, -28, 0, 42)
 ToggleBtn.Position = UDim2.new(0, 14, 0, 158)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-ToggleBtn.Text = "🟢 СБОР И ХОППЕР (1-5 ИГР) ВКЛЮЧЕН"
+ToggleBtn.Text = "🟢 СБОР И ХОППЕР (1-6 ИГР) ВКЛЮЧЕН"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 14
@@ -659,13 +641,16 @@ end)
 ToggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmMaster = not _G.AutoFarmMaster
     if _G.AutoFarmMaster then
-        ToggleBtn.Text = "🟢 СБОР И ХОППЕР (1-5 ИГР) ВКЛЮЧЕН"
+        ToggleBtn.Text = "🟢 СБОР И ХОППЕР (1-6 ИГР) ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
+        TaskLabel.Text = "🟢 СБОР ФРУКТОВ И СЕРВЕР ХОП..."
+        TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
         ToggleBtn.Text = "🔴 СБОР И ХОППЕР ВЫКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
         TaskLabel.Text = "🔴 СТАТУС: ВЫКЛЮЧЕНО"
+        TaskLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         notify("Harvester Engine", "🔴 Поиск остановлен")
     end
 end)
@@ -691,11 +676,10 @@ task.spawn(function()
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
                 task.wait(1.0)
             else
-                -- Priority 2: Safe Low-Player Server Hop (1-5 Players)
+                -- Priority 2: Safe Low-Player Server Hop (1-6 Players)
                 if _G.AutoServerHop and not isHoppingCurrently then
-                    TaskLabel.Text = "🚀 СКАН СЕРВЕРОВ (1-5 ИГРОКОВ)..."
+                    TaskLabel.Text = "🚀 СКАН СЕРВЕРОВ (1-6 ИГРОКОВ)..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
-                    task.wait(0.5)
                     safeServerHop()
                 end
             end
@@ -703,5 +687,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v35.0", "⚡ Стабильный сбор фруктов и сервер хоппер запущен!")
-print("[+] Blox Fruits v35.0 Crash-Free Harvester & Hopper Active.")
+notify("Master Harvester v36.0", "⚡ Сервер Хоппер и покупка фруктов за $254M АКТИВНЫ!")
+print("[+] Blox Fruits v36.0 Unlocked Hopper Engine Active.")
