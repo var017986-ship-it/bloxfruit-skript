@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Native Server Hopper v37.0
+-- Blox Fruits Master Harvester & Fast Hopper v38.0
 -- File: script.lua
--- Fixes: 1. Native ServerHop Remote Engine (CommF_:InvokeServer("ServerHop") - 0% Error 773)
---        2. Main Universe PlaceID Fallback (2753915549) to eliminate 773 Restricted Place errors
---        3. BlueStacks KeyPress Auto-OK Engine (KeyCode.Return + Firesignal)
---        4. Priority Fruit Harvester & Auto Inventory Storage
---        5. Working Gacha Cousin Fruit Buyer ($254M Beli auto-rolls)
+-- Features: 1. Native GuiService:ClearError() Engine (Instantly clears BlueStacks error dialogs)
+--           2. Automatic Continuous Server Hop Loop (Fires native CommF_:InvokeServer("ServerHop"))
+--           3. Priority Fruit Harvester & Auto Inventory Storage
+--           4. Gacha Cousin Auto-Buyer ($254M Beli auto-rolls)
+--           5. Auto Stat Point Allocator & Sleek Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -23,9 +23,6 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 local JobId = game.JobId
-
--- Main Universe Blox Fruits PlaceID (First Sea Universe)
-local MAIN_UNIVERSE_PLACE_ID = 2753915549
 
 -- Master Configuration Flags
 _G.AutoFarmMaster = true
@@ -54,13 +51,6 @@ local TARGET_FRUITS = {
     ["Control Fruit"] = true
 }
 
--- Gacha Dealer NPC Locations for All 3 Seas
-local GACHA_POSITIONS = {
-    [2753915549] = Vector3.new(-1612, 37, 149),   -- First Sea (Jungle)
-    [4442272183] = Vector3.new(-380, 73, 298),     -- Second Sea (Cafe)
-    [7449423635] = Vector3.new(-12465, 375, -7550) -- Third Sea (Mansion)
-}
-
 -----------------------------------------------------------------------
 -- Notification Subsystem
 -----------------------------------------------------------------------
@@ -69,7 +59,7 @@ local function notify(title, text)
         StarterGui:SetCore("SendNotification", {
             Title = title,
             Text = text,
-            Duration = 4
+            Duration = 3
         })
     end)
 end
@@ -122,44 +112,34 @@ end
 autoSelectPiratesTeam()
 
 -----------------------------------------------------------------------
--- Subsystem: BlueStacks KeyPress & Firesignal Auto-OK Engine
+-- Subsystem: Native GuiService:ClearError() Auto-OK Engine
 -----------------------------------------------------------------------
 local isHoppingCurrently = false
-local safeNativeServerHop
+local executeFastHop
 
-local function safeDismissErrorPopups()
+local function safeAutoOKEngine()
     task.spawn(function()
         while true do
-            task.wait(0.8)
+            task.wait(0.5)
             pcall(function()
+                -- Native Roblox ClearError API (Instantly closes error prompt on BlueStacks/Android)
+                if GuiService and GuiService.ClearError then
+                    GuiService:ClearError()
+                end
+
                 local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
                 local promptOverlay = robloxPromptGui and robloxPromptGui:FindFirstChild("promptOverlay")
                 if promptOverlay then
                     local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
                     if errorPrompt and errorPrompt.Visible then
-                        -- 1. Simulate ENTER Key (Instantly triggers OK button on BlueStacks/Windows)
-                        pcall(function()
-                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-                            task.wait(0.05)
-                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                        end)
-
-                        -- 2. Execute firesignal & getconnections on all buttons
-                        local buttonArea = errorPrompt:FindFirstChild("ButtonArea") or errorPrompt
-                        for _, btn in ipairs(buttonArea:GetDescendants()) do
+                        for _, btn in ipairs(errorPrompt:GetDescendants()) do
                             if btn:IsA("TextButton") or btn:IsA("ImageButton") then
                                 if firesignal then firesignal(btn.MouseButton1Click) end
-                                if getconnections then
-                                    for _, c in ipairs(getconnections(btn.MouseButton1Click)) do c:Fire() end
-                                end
                             end
                         end
-
-                        notify("Auto OK", "⚠️ Нажат ОК! Запуск родного переключения...")
-                        task.wait(0.5)
-                        if safeNativeServerHop and not isHoppingCurrently then
-                            safeNativeServerHop()
-                        end
+                        notify("Auto OK", "⚠️ Нажат ОК! Запуск переподключения...")
+                        task.wait(0.3)
+                        if executeFastHop then executeFastHop() end
                     end
                 end
             end)
@@ -167,32 +147,30 @@ local function safeDismissErrorPopups()
     end)
 end
 
-safeDismissErrorPopups()
+safeAutoOKEngine()
 
 GuiService.ErrorMessageChanged:Connect(function()
     pcall(function()
-        notify("Auto Error Recovery", "⚠️ Системное авто-переподключение...")
-        task.wait(0.5)
-        if safeNativeServerHop and not isHoppingCurrently then
-            safeNativeServerHop()
-        end
+        if GuiService and GuiService.ClearError then GuiService:ClearError() end
+        notify("Auto Error Recovery", "⚠️ Системная ошибка очищена! Ищем сервер...")
+        task.wait(0.3)
+        if executeFastHop then executeFastHop() end
     end)
 end)
 
 -----------------------------------------------------------------------
--- Subsystem: Native Blox Fruits Server Hopper Engine (0% Error 773)
+-- Subsystem: Fast Continuous Native Server Hopper (CommF_ Engine)
 -----------------------------------------------------------------------
-safeNativeServerHop = function()
+executeFastHop = function()
     if isHoppingCurrently then return end
     isHoppingCurrently = true
 
-    task.delay(6, function()
+    task.delay(4, function()
         isHoppingCurrently = false
     end)
 
-    notify("Server Hopper", "🚀 Запуск родного поиска сервера Blox Fruits...")
+    notify("Server Hopper", "🚀 Авто-поиск нового сервера...")
 
-    -- 1. Try Native Blox Fruits ServerHop Remote (100% Reliable, 0% Error 773)
     local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     if commF then
         local queueCode = string.format([[
@@ -203,72 +181,13 @@ safeNativeServerHop = function()
         local queueFunc = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or (getgenv and getgenv().queue_on_teleport)
         if queueFunc then pcall(function() queueFunc(queueCode) end) end
 
-        local nativeSuccess = pcall(function()
+        pcall(function()
             commF:InvokeServer("ServerHop")
         end)
-
-        if nativeSuccess then
-            task.wait(5)
-            isHoppingCurrently = false
-            return
-        end
     end
 
-    -- 2. Fallback: Query Main Universe Place ID (2753915549) with Low Player Filter (1-5 players)
-    _G.VisitedServersHistory[JobId] = true
-
-    local pageCursor = ""
-    local candidateServer = nil
-
-    for page = 1, 6 do
-        local apiUrl = string.format(
-            "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s",
-            MAIN_UNIVERSE_PLACE_ID,
-            pageCursor ~= "" and ("&cursor=" .. pageCursor) or ""
-        )
-
-        local success, response = pcall(function() return game:HttpGet(apiUrl) end)
-
-        if success and response then
-            local decoded = HttpService:JSONDecode(response)
-            if decoded and decoded.data then
-                local candidates = {}
-                for _, s in ipairs(decoded.data) do
-                    if s.id ~= JobId and s.playing >= 1 and s.playing <= 5 and not _G.VisitedServersHistory[s.id] then
-                        table.insert(candidates, s)
-                    end
-                end
-
-                if #candidates > 0 then
-                    candidateServer = candidates[math.random(1, #candidates)]
-                    break
-                end
-
-                if decoded.nextPageCursor then
-                    pageCursor = decoded.nextPageCursor
-                else
-                    break
-                end
-            end
-        end
-        task.wait(0.15)
-    end
-
-    if candidateServer then
-        notify("Server Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", candidateServer.playing))
-        _G.VisitedServersHistory[candidateServer.id] = true
-
-        pcall(function()
-            TeleportService:TeleportToPlaceInstance(MAIN_UNIVERSE_PLACE_ID, candidateServer.id, LocalPlayer)
-        end)
-        task.wait(5)
-        isHoppingCurrently = false
-    else
-        notify("Server Hopper", "⚠️ Запуск стандартного переподключения...")
-        pcall(function() TeleportService:Teleport(MAIN_UNIVERSE_PLACE_ID, LocalPlayer) end)
-        task.wait(5)
-        isHoppingCurrently = false
-    end
+    task.wait(3.5)
+    isHoppingCurrently = false
 end
 
 -----------------------------------------------------------------------
@@ -573,7 +492,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v37.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v38.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -632,7 +551,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🚀 РОДНОЙ СЕРВЕР ХОП (COMMF_)..."
+TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР (COMMF_)..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -643,7 +562,7 @@ local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(1, -28, 0, 42)
 ToggleBtn.Position = UDim2.new(0, 14, 0, 158)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-ToggleBtn.Text = "🟢 NATIVE SERVER HOPPER ВКЛЮЧЕН"
+ToggleBtn.Text = "🟢 АВТО-ХОППЕР И СБОР ВКЛЮЧЕН"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 14
@@ -672,9 +591,9 @@ end)
 ToggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmMaster = not _G.AutoFarmMaster
     if _G.AutoFarmMaster then
-        ToggleBtn.Text = "🟢 NATIVE SERVER HOPPER ВКЛЮЧЕН"
+        ToggleBtn.Text = "🟢 АВТО-ХОППЕР И СБОР ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        TaskLabel.Text = "🚀 РОДНОЙ СЕРВЕР ХОП (COMMF_)..."
+        TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР (COMMF_)..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
@@ -707,16 +626,16 @@ task.spawn(function()
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
                 task.wait(1.0)
             else
-                -- Priority 2: Native Blox Fruits Server Hop (CommF_:InvokeServer("ServerHop"))
+                -- Priority 2: Native Continuous Server Hop
                 if _G.AutoServerHop and not isHoppingCurrently then
-                    TaskLabel.Text = "🚀 РОДНОЙ СЕРВЕР ХОП (COMMF_)..."
+                    TaskLabel.Text = "🚀 ПОИСК НОВОГО СЕРВЕРА..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
-                    safeNativeServerHop()
+                    executeFastHop()
                 end
             end
         end
     end
 end)
 
-notify("Master Harvester v37.0", "⚡ Родной Сервер Хоппер (0% Error 773) АКТИВЕН!")
-print("[+] Blox Fruits v37.0 Native CommF_ Hopper Active.")
+notify("Harvester & Hopper v38.0", "⚡ GuiService:ClearError() & Fast Hop Active!")
+print("[+] Blox Fruits v38.0 Fast Hop & ClearError Active.")
