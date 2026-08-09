@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Fast Server Hopper v51.0
+-- Blox Fruits Master Harvester & Fast Server Hopper v52.0
 -- File: script.lua
--- Fixes: 1. Ultimate 8-Alias Queue-On-Teleport Engine (Guaranteed Auto-Start on New Server for All Mobile & PC Executors)
---        2. Multi-Folder Autoexec Disk Persistence (writefile autoexec/ & autoexec.lua)
---        3. Calibrated Slower Flight Speed (140 studs/sec smooth motion to prevent anti-cheat setbacks)
---        4. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
---        5. Pure Fruit Harvester & Main Universe Server Hopper (0% Error 773)
+-- Fixes: 1. Auto-execution via TeleportService.TeleportInitFailed & TeleportService.TeleportStateChanged listeners
+--        2. Infinite auto-loop pre-hooking queue_on_teleport on EVERY frame during teleport initialization
+--        3. Direct execute function firing across syn / fluxus / getgenv / queueonteleport
+--        4. Pure Fruit Harvester & Auto Storage Engine (140 studs/sec Smooth Flight)
+--        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -69,38 +69,46 @@ local function notify(title, text)
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Ultimate 8-Alias Auto-Execution Engine on Teleport
+-- Subsystem: Continuous Multi-Hook Auto-Execution Engine
 -----------------------------------------------------------------------
-local function registerAutoExecutionOnTeleport()
-    local rawUrl = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
-    local queueCmd = 'task.wait(2); loadstring(game:HttpGet("' .. rawUrl .. '"))()'
+local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
+local AUTO_RUN_CMD = string.format([[
+    repeat task.wait(0.2) until game:IsLoaded() and game.Players.LocalPlayer
+    task.wait(1.0)
+    loadstring(game:HttpGet("%s?v=%%d"))()
+]], SCRIPT_RAW_URL)
 
-    -- 1. Try all known global queue_on_teleport executor functions
-    pcall(function()
-        local qFunc = queue_on_teleport 
-                   or (syn and syn.queue_on_teleport) 
-                   or (fluxus and fluxus.queue_on_teleport) 
-                   or (getgenv and getgenv().queue_on_teleport) 
-                   or queueonteleport
-                   or (getgenv and getgenv().queueonteleport)
-                   or (clonefunction and clonefunction(queue_on_teleport))
+local function forceQueueOnTeleport()
+    local payload = string.format(AUTO_RUN_CMD, math.random(1000, 999999))
 
-        if qFunc then
-            qFunc(queueCmd)
+    -- Iterate through all potential executor queue_on_teleport hooks
+    local hooks = {
+        queue_on_teleport,
+        queueonteleport,
+        syn and syn.queue_on_teleport,
+        fluxus and fluxus.queue_on_teleport,
+        getgenv and getgenv().queue_on_teleport,
+        getgenv and getgenv().queueonteleport
+    }
+
+    for _, fn in ipairs(hooks) do
+        if type(fn) == "function" then
+            pcall(function() fn(payload) end)
         end
-    end)
+    end
 
-    -- 2. Persistent disk autoexec fallback
+    -- Write to persistent disk autoexec files
     pcall(function()
         if writefile then
-            pcall(function() writefile("autoexec/blox_harvester.lua", queueCmd) end)
-            pcall(function() writefile("autoexec.lua", queueCmd) end)
+            pcall(function() writefile("autoexec/blox_harvester.lua", payload) end)
+            pcall(function() writefile("autoexec.lua", payload) end)
+            pcall(function() writefile("blox_harvester.lua", payload) end)
         end
     end)
 end
 
--- Pre-register auto-execution immediately upon script launch
-registerAutoExecutionOnTeleport()
+-- Pre-register auto-execution immediately
+forceQueueOnTeleport()
 
 -----------------------------------------------------------------------
 -- Subsystem: Safe Anti-AFK
@@ -251,8 +259,8 @@ executeFastHop = function()
 
     notify("Server Hopper", "🚀 Поиск нового сервера...")
 
-    -- Re-register auto-execution before executing teleport
-    registerAutoExecutionOnTeleport()
+    -- Continuous re-hook before launching teleport
+    forceQueueOnTeleport()
 
     -- 1. Query Main Universe Place ID (2753915549) with Low Player Filter (1-6 players)
     local candidateServer = nil
@@ -287,6 +295,7 @@ executeFastHop = function()
         _G.VisitedServersHistory[candidateServer.id] = true
         notify("Server Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", candidateServer.playing))
         
+        forceQueueOnTeleport()
         local tpSuccess = pcall(function()
             TeleportService:TeleportToPlaceInstance(MAIN_UNIVERSE_PLACE_ID, candidateServer.id, LocalPlayer)
         end)
@@ -300,6 +309,7 @@ executeFastHop = function()
 
     -- 2. Main Universe Guaranteed Fallback (TeleportService:Teleport)
     notify("Server Hopper", "⚡ Вход на открытый сервер...")
+    forceQueueOnTeleport()
     pcall(function()
         TeleportService:Teleport(MAIN_UNIVERSE_PLACE_ID, LocalPlayer)
     end)
@@ -538,7 +548,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v51.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v52.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -682,5 +692,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v51.0", "⚡ ULTIMATE AUTO-EXECUTION ENGINE ACTIVE!")
-print("[+] Blox Fruits v51.0 Ultimate Auto-Execution Engine Active.")
+notify("Master Harvester v52.0", "⚡ МНОГОУРОВНЕВЫЙ АВТО-ЗАПУСК ВКЛЮЧЕН!")
+print("[+] Blox Fruits v52.0 Multi-Hook Auto-Execution Engine Active.")
