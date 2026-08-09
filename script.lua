@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Fast Hopper v38.0
+-- Blox Fruits Master Harvester & Gacha Auto-Buyer v39.0
 -- File: script.lua
--- Features: 1. Native GuiService:ClearError() Engine (Instantly clears BlueStacks error dialogs)
---           2. Automatic Continuous Server Hop Loop (Fires native CommF_:InvokeServer("ServerHop"))
---           3. Priority Fruit Harvester & Auto Inventory Storage
---           4. Gacha Cousin Auto-Buyer ($254M Beli auto-rolls)
---           5. Auto Stat Point Allocator & Sleek Telemetry Dashboard GUI
+-- Fixes: 1. Bulletproof Auto-OK Error Dismiss Engine (Hides overlay & invokes ClearError + firesignal)
+--        2. Gacha Cousin Auto-Buyer ($254M Beli auto-rolls with all remote signatures & NPC flight)
+--        3. Continuous Native Blox Fruits Server Hopper (CommF_:InvokeServer("ServerHop"))
+--        4. Priority Fruit Harvester & Auto Inventory Storage
+--        5. Auto Stat Point Allocator & Sleek Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -49,6 +49,13 @@ local TARGET_FRUITS = {
     ["Portal Fruit"] = true, ["Buddha Fruit"] = true, ["Rumble Fruit"] = true,
     ["Sound Fruit"] = true, ["Mammoth Fruit"] = true, ["Gravity Fruit"] = true,
     ["Control Fruit"] = true
+}
+
+-- Gacha Dealer NPC Locations for All 3 Seas
+local GACHA_POSITIONS = {
+    [2753915549] = Vector3.new(-1612, 37, 149),   -- First Sea (Jungle)
+    [4442272183] = Vector3.new(-380, 73, 298),     -- Second Sea (Cafe)
+    [7449423635] = Vector3.new(-12465, 375, -7550) -- Third Sea (Mansion)
 }
 
 -----------------------------------------------------------------------
@@ -112,7 +119,7 @@ end
 autoSelectPiratesTeam()
 
 -----------------------------------------------------------------------
--- Subsystem: Native GuiService:ClearError() Auto-OK Engine
+-- Subsystem: Bulletproof Auto-OK Error Dismiss Engine
 -----------------------------------------------------------------------
 local isHoppingCurrently = false
 local executeFastHop
@@ -120,11 +127,11 @@ local executeFastHop
 local function safeAutoOKEngine()
     task.spawn(function()
         while true do
-            task.wait(0.5)
+            task.wait(0.3)
             pcall(function()
-                -- Native Roblox ClearError API (Instantly closes error prompt on BlueStacks/Android)
+                -- Native GuiService ClearError
                 if GuiService and GuiService.ClearError then
-                    GuiService:ClearError()
+                    pcall(function() GuiService:ClearError() end)
                 end
 
                 local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
@@ -132,12 +139,24 @@ local function safeAutoOKEngine()
                 if promptOverlay then
                     local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
                     if errorPrompt and errorPrompt.Visible then
+                        -- Hide prompt immediately
+                        errorPrompt.Visible = false
+
+                        -- Execute click signals on all buttons inside prompt
                         for _, btn in ipairs(errorPrompt:GetDescendants()) do
-                            if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-                                if firesignal then firesignal(btn.MouseButton1Click) end
+                            if btn:IsA("GuiButton") or btn:IsA("TextButton") or btn:IsA("ImageButton") then
+                                if firesignal then
+                                    firesignal(btn.MouseButton1Click)
+                                    firesignal(btn.Activated)
+                                end
+                                if getconnections then
+                                    for _, c in ipairs(getconnections(btn.MouseButton1Click)) do c:Fire() end
+                                    for _, c in ipairs(getconnections(btn.Activated)) do c:Fire() end
+                                end
                             end
                         end
-                        notify("Auto OK", "⚠️ Нажат ОК! Запуск переподключения...")
+
+                        notify("Auto OK", "⚡ Ошибка сервера устранена! Переход...")
                         task.wait(0.3)
                         if executeFastHop then executeFastHop() end
                     end
@@ -428,9 +447,23 @@ local function autoBuyGachaFruit()
         if beli and beli.Value >= 250000 then
             local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
             if commF then
+                -- Fly to Gacha NPC in current Sea if far away
+                local gachaPos = GACHA_POSITIONS[PlaceId]
+                local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if gachaPos and root and (gachaPos - root.Position).Magnitude > 30 then
+                    notify("Gacha Dealer", "✈️ Полет к продавцу фруктов...")
+                    flyTo(CFrame.new(gachaPos))
+                    task.wait(0.3)
+                end
+
                 notify("Gacha Dealer", "🎲 Покупка случайного фрукта...")
-                commF:InvokeServer("Cousin", "Buy")
-                task.wait(0.5)
+                
+                -- Invoke all Blox Fruits Gacha payment signatures
+                pcall(function() commF:InvokeServer("Cousin", "Buy", "Money") end)
+                pcall(function() commF:InvokeServer("Cousin", "Buy", true) end)
+                pcall(function() commF:InvokeServer("Cousin", "Buy") end)
+
+                task.wait(0.8)
                 scanAndStoreAllHeldFruits()
             end
         end
@@ -492,7 +525,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v38.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v39.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -551,7 +584,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР (COMMF_)..."
+TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР И ГАЧА..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -562,7 +595,7 @@ local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(1, -28, 0, 42)
 ToggleBtn.Position = UDim2.new(0, 14, 0, 158)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-ToggleBtn.Text = "🟢 АВТО-ХОППЕР И СБОР ВКЛЮЧЕН"
+ToggleBtn.Text = "🟢 АВТО-ХОППЕР И ГАЧА ВКЛЮЧЕН"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 14
@@ -591,13 +624,13 @@ end)
 ToggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmMaster = not _G.AutoFarmMaster
     if _G.AutoFarmMaster then
-        ToggleBtn.Text = "🟢 АВТО-ХОППЕР И СБОР ВКЛЮЧЕН"
+        ToggleBtn.Text = "🟢 АВТО-ХОППЕР И ГАЧА ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР (COMMF_)..."
+        TaskLabel.Text = "🚀 СЕРВЕР ХОППЕР И ГАЧА..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
-        ToggleBtn.Text = "🔴 СБОР И ХОППЕР ВЫКЛЮЧЕН"
+        ToggleBtn.Text = "🔴 СБОР И ГАЧА ВЫКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
         TaskLabel.Text = "🔴 СТАТУС: ВЫКЛЮЧЕНО"
         TaskLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -637,5 +670,5 @@ task.spawn(function()
     end
 end)
 
-notify("Harvester & Hopper v38.0", "⚡ GuiService:ClearError() & Fast Hop Active!")
-print("[+] Blox Fruits v38.0 Fast Hop & ClearError Active.")
+notify("Master Harvester v39.0", "⚡ Bulletproof Auto-OK & Gacha Spin Active!")
+print("[+] Blox Fruits v39.0 Bulletproof Auto-OK & Gacha Spin Active.")
