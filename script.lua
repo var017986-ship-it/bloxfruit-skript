@@ -1,10 +1,12 @@
 -- ====================================================================
--- Blox Fruits Master Automator v26.0 High-Speed Safe Farm & Anti-Rubberband
+-- Blox Fruits Ultimate Autonomous Level Automator v27.0
 -- File: script.lua
--- Fixes: 1. Speed calibrated to 230 studs/sec (Fast & Smooth flight, zero wall stuck)
---        2. Anti-Rubberband distance check: Flies to mobs instead of instant teleporting
---        3. Mob Magnet & Rapid Auto-Attack Loop
---        4. Auto-Stats, Priority Fruit Interceptor & Dashboard GUI
+-- Features: 1. Full Quest & Mob Matrix with Quest Giver Coordinates (1 to 2550)
+--           2. Active Quest Detector (Flies to Quest Giver FIRST when no quest active)
+--           3. High-Speed Noclip BodyVelocity Flight (300 studs/sec)
+--           4. Mob Magnet & Cluster Auto-Attack Engine
+--           5. Auto Stat Allocation & Priority Fruit Storage
+--           6. Real-Time Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -66,8 +68,8 @@ end
 if not _G.FailedServersList then _G.FailedServersList = {} end
 if not _G.UnstorableFruits then _G.UnstorableFruits = {} end
 
--- High-Speed Safe Flight Speed (230 studs/sec - Fast, smooth, anti-cheat approved)
-local FLY_SPEED = 230
+-- Fast Noclip Flight Speed (300 studs/sec)
+local FLY_SPEED = 300
 
 -- Target Fruits List
 local TARGET_FRUITS = {
@@ -82,49 +84,49 @@ local TARGET_FRUITS = {
 -- Comprehensive Level Quest Database (Level 1 to 2550 across all 3 Seas)
 local LEVEL_QUEST_DATABASE = {
     -- First Sea (1 - 699)
-    {MinLvl = 1, MaxLvl = 9, QuestName = "BanditQuest1", QuestLvl = 1, MobName = "Bandit", MobPos = Vector3.new(1060, 16, 1548)},
-    {MinLvl = 10, MaxLvl = 14, QuestName = "JungleQuest", QuestLvl = 1, MobName = "Monkey", MobPos = Vector3.new(-1613, 37, 149)},
-    {MinLvl = 15, MaxLvl = 29, QuestName = "JungleQuest", QuestLvl = 2, MobName = "Gorilla", MobPos = Vector3.new(-1237, 6, -486)},
-    {MinLvl = 30, MaxLvl = 39, QuestName = "PirateQuest", QuestLvl = 1, MobName = "Pirate", MobPos = Vector3.new(-1160, 4, 3930)},
-    {MinLvl = 40, MaxLvl = 59, QuestName = "PirateQuest", QuestLvl = 2, MobName = "Brute", MobPos = Vector3.new(-1145, 15, 4350)},
-    {MinLvl = 60, MaxLvl = 89, QuestName = "DesertQuest", QuestLvl = 1, MobName = "Desert Bandit", MobPos = Vector3.new(932, 6, 4484)},
-    {MinLvl = 90, MaxLvl = 119, QuestName = "SnowQuest", QuestLvl = 1, MobName = "Snow Bandit", MobPos = Vector3.new(1286, 105, -1382)},
-    {MinLvl = 120, MaxLvl = 149, QuestName = "MarineQuest2", QuestLvl = 1, MobName = "Chief Petty Officer", MobPos = Vector3.new(-5036, 20, 4324)},
-    {MinLvl = 150, MaxLvl = 189, QuestName = "SkyQuest", QuestLvl = 1, MobName = "Sky Bandit", MobPos = Vector3.new(-4840, 717, -2620)},
-    {MinLvl = 190, MaxLvl = 224, QuestName = "PrisonerQuest", QuestLvl = 1, MobName = "Prisoner", MobPos = Vector3.new(5300, 1, 470)},
-    {MinLvl = 225, MaxLvl = 299, QuestName = "ColosseumQuest", QuestLvl = 1, MobName = "Toga Warrior", MobPos = Vector3.new(-1580, 7, -2980)},
-    {MinLvl = 300, MaxLvl = 374, QuestName = "MagmaQuest", QuestLvl = 1, MobName = "Military Soldier", MobPos = Vector3.new(-5400, 15, 8500)},
-    {MinLvl = 375, MaxLvl = 449, QuestName = "FishmanQuest", QuestLvl = 1, MobName = "Fishman Warrior", MobPos = Vector3.new(61000, 18, 1500)},
-    {MinLvl = 450, MaxLvl = 524, QuestName = "SkyExp1Quest", QuestLvl = 1, MobName = "Sky Guard", MobPos = Vector3.new(-7900, 5545, -3800)},
-    {MinLvl = 525, MaxLvl = 624, QuestName = "FountainQuest", QuestLvl = 1, MobName = "Forest Pirate", MobPos = Vector3.new(5250, 38, 4050)},
-    {MinLvl = 625, MaxLvl = 699, QuestName = "FountainQuest", QuestLvl = 2, MobName = "Galley Pirate", MobPos = Vector3.new(5600, 38, 4950)},
+    {MinLvl = 1, MaxLvl = 9, QuestName = "BanditQuest1", QuestLvl = 1, MobName = "Bandit", QuestPos = Vector3.new(1060, 16, 1548), MobPos = Vector3.new(1060, 16, 1548)},
+    {MinLvl = 10, MaxLvl = 14, QuestName = "JungleQuest", QuestLvl = 1, MobName = "Monkey", QuestPos = Vector3.new(-1600, 37, 153), MobPos = Vector3.new(-1613, 37, 149)},
+    {MinLvl = 15, MaxLvl = 29, QuestName = "JungleQuest", QuestLvl = 2, MobName = "Gorilla", QuestPos = Vector3.new(-1600, 37, 153), MobPos = Vector3.new(-1237, 6, -486)},
+    {MinLvl = 30, MaxLvl = 39, QuestName = "PirateQuest", QuestLvl = 1, MobName = "Pirate", QuestPos = Vector3.new(-1140, 4, 3828), MobPos = Vector3.new(-1160, 4, 3930)},
+    {MinLvl = 40, MaxLvl = 59, QuestName = "PirateQuest", QuestLvl = 2, MobName = "Brute", QuestPos = Vector3.new(-1140, 4, 3828), MobPos = Vector3.new(-1145, 15, 4350)},
+    {MinLvl = 60, MaxLvl = 89, QuestName = "DesertQuest", QuestLvl = 1, MobName = "Desert Bandit", QuestPos = Vector3.new(896, 6, 4388), MobPos = Vector3.new(932, 6, 4484)},
+    {MinLvl = 90, MaxLvl = 119, QuestName = "SnowQuest", QuestLvl = 1, MobName = "Snow Bandit", QuestPos = Vector3.new(1385, 87, -1298), MobPos = Vector3.new(1286, 105, -1382)},
+    {MinLvl = 120, MaxLvl = 149, QuestName = "MarineQuest2", QuestLvl = 1, MobName = "Chief Petty Officer", QuestPos = Vector3.new(-5036, 20, 4324), MobPos = Vector3.new(-5036, 20, 4324)},
+    {MinLvl = 150, MaxLvl = 189, QuestName = "SkyQuest", QuestLvl = 1, MobName = "Sky Bandit", QuestPos = Vector3.new(-4840, 717, -2620), MobPos = Vector3.new(-4840, 717, -2620)},
+    {MinLvl = 190, MaxLvl = 224, QuestName = "PrisonerQuest", QuestLvl = 1, MobName = "Prisoner", QuestPos = Vector3.new(5300, 1, 470), MobPos = Vector3.new(5300, 1, 470)},
+    {MinLvl = 225, MaxLvl = 299, QuestName = "ColosseumQuest", QuestLvl = 1, MobName = "Toga Warrior", QuestPos = Vector3.new(-1580, 7, -2980), MobPos = Vector3.new(-1580, 7, -2980)},
+    {MinLvl = 300, MaxLvl = 374, QuestName = "MagmaQuest", QuestLvl = 1, MobName = "Military Soldier", QuestPos = Vector3.new(-5313, 12, 8515), MobPos = Vector3.new(-5400, 15, 8500)},
+    {MinLvl = 375, MaxLvl = 449, QuestName = "FishmanQuest", QuestLvl = 1, MobName = "Fishman Warrior", QuestPos = Vector3.new(61163, 18, 1567), MobPos = Vector3.new(61000, 18, 1500)},
+    {MinLvl = 450, MaxLvl = 524, QuestName = "SkyExp1Quest", QuestLvl = 1, MobName = "Sky Guard", QuestPos = Vector3.new(-7860, 5545, -3800), MobPos = Vector3.new(-7900, 5545, -3800)},
+    {MinLvl = 525, MaxLvl = 624, QuestName = "FountainQuest", QuestLvl = 1, MobName = "Forest Pirate", QuestPos = Vector3.new(5258, 38, 4050), MobPos = Vector3.new(5250, 38, 4050)},
+    {MinLvl = 625, MaxLvl = 699, QuestName = "FountainQuest", QuestLvl = 2, MobName = "Galley Pirate", QuestPos = Vector3.new(5258, 38, 4050), MobPos = Vector3.new(5600, 38, 4950)},
 
     -- Second Sea (700 - 1499)
-    {MinLvl = 700, MaxLvl = 724, QuestName = "Area1Quest", QuestLvl = 1, MobName = "Raider", MobPos = Vector3.new(-425, 72, 1836)},
-    {MinLvl = 725, MaxLvl = 774, QuestName = "Area1Quest", QuestLvl = 2, MobName = "Mercenary", MobPos = Vector3.new(-875, 140, 1370)},
-    {MinLvl = 775, MaxLvl = 874, QuestName = "Area2Quest", QuestLvl = 1, MobName = "Swan Pirate", MobPos = Vector3.new(875, 120, 1220)},
-    {MinLvl = 875, MaxLvl = 949, QuestName = "MarineQuest3", QuestLvl = 1, MobName = "Marine Lieutenant", MobPos = Vector3.new(-2840, 72, -3000)},
-    {MinLvl = 950, MaxLvl = 999, QuestName = "ZombieQuest", QuestLvl = 1, MobName = "Zombie", MobPos = Vector3.new(-5480, 48, -7950)},
-    {MinLvl = 1000, MaxLvl = 1099, QuestName = "SnowMountainQuest", QuestLvl = 1, MobName = "Snow Trooper", MobPos = Vector3.new(650, 400, -5300)},
-    {MinLvl = 1100, MaxLvl = 1174, QuestName = "IceSideQuest", QuestLvl = 1, MobName = "Lab Subordinate", MobPos = Vector3.new(-6050, 15, -4900)},
-    {MinLvl = 1175, MaxLvl = 1249, QuestName = "FireSideQuest", QuestLvl = 1, MobName = "Magma Ninja", MobPos = Vector3.new(-5400, 15, -5900)},
-    {MinLvl = 1250, MaxLvl = 1349, QuestName = "ShipQuest1", QuestLvl = 1, MobName = "Ship Deckhand", MobPos = Vector3.new(900, 125, 33000)},
-    {MinLvl = 1350, MaxLvl = 1424, QuestName = "FrostQuest", QuestLvl = 1, MobName = "Arctic Warrior", MobPos = Vector3.new(5850, 28, -6200)},
-    {MinLvl = 1425, MaxLvl = 1499, QuestName = "ForgottenQuest", QuestLvl = 1, MobName = "Water Fighter", MobPos = Vector3.new(-3050, 235, -10150)},
+    {MinLvl = 700, MaxLvl = 724, QuestName = "Area1Quest", QuestLvl = 1, MobName = "Raider", QuestPos = Vector3.new(-425, 72, 1836), MobPos = Vector3.new(-425, 72, 1836)},
+    {MinLvl = 725, MaxLvl = 774, QuestName = "Area1Quest", QuestLvl = 2, MobName = "Mercenary", QuestPos = Vector3.new(-425, 72, 1836), MobPos = Vector3.new(-875, 140, 1370)},
+    {MinLvl = 775, MaxLvl = 874, QuestName = "Area2Quest", QuestLvl = 1, MobName = "Swan Pirate", QuestPos = Vector3.new(875, 120, 1220), MobPos = Vector3.new(875, 120, 1220)},
+    {MinLvl = 875, MaxLvl = 949, QuestName = "MarineQuest3", QuestLvl = 1, MobName = "Marine Lieutenant", QuestPos = Vector3.new(-2440, 72, -3210), MobPos = Vector3.new(-2840, 72, -3000)},
+    {MinLvl = 950, MaxLvl = 999, QuestName = "ZombieQuest", QuestLvl = 1, MobName = "Zombie", QuestPos = Vector3.new(-5480, 48, -7950), MobPos = Vector3.new(-5480, 48, -7950)},
+    {MinLvl = 1000, MaxLvl = 1099, QuestName = "SnowMountainQuest", QuestLvl = 1, MobName = "Snow Trooper", QuestPos = Vector3.new(605, 400, -5370), MobPos = Vector3.new(650, 400, -5300)},
+    {MinLvl = 1100, MaxLvl = 1174, QuestName = "IceSideQuest", QuestLvl = 1, MobName = "Lab Subordinate", QuestPos = Vector3.new(-6050, 15, -4900), MobPos = Vector3.new(-6050, 15, -4900)},
+    {MinLvl = 1175, MaxLvl = 1249, QuestName = "FireSideQuest", QuestLvl = 1, MobName = "Magma Ninja", QuestPos = Vector3.new(-5400, 15, -5900), MobPos = Vector3.new(-5400, 15, -5900)},
+    {MinLvl = 1250, MaxLvl = 1349, QuestName = "ShipQuest1", QuestLvl = 1, MobName = "Ship Deckhand", QuestPos = Vector3.new(900, 125, 33000), MobPos = Vector3.new(900, 125, 33000)},
+    {MinLvl = 1350, MaxLvl = 1424, QuestName = "FrostQuest", QuestLvl = 1, MobName = "Arctic Warrior", QuestPos = Vector3.new(5670, 28, -6480), MobPos = Vector3.new(5850, 28, -6200)},
+    {MinLvl = 1425, MaxLvl = 1499, QuestName = "ForgottenQuest", QuestLvl = 1, MobName = "Water Fighter", QuestPos = Vector3.new(-3050, 235, -10150), MobPos = Vector3.new(-3050, 235, -10150)},
 
     -- Third Sea (1500 - 2550)
-    {MinLvl = 1500, MaxLvl = 1574, QuestName = "PiratePortQuest", QuestLvl = 1, MobName = "Pirate Port", MobPos = Vector3.new(-2900, 42, 5450)},
-    {MinLvl = 1575, MaxLvl = 1699, QuestName = "AmazonQuest", QuestLvl = 1, MobName = "Dragon Crew Warrior", MobPos = Vector3.new(5800, 50, -2500)},
-    {MinLvl = 1700, MaxLvl = 1774, QuestName = "AmazonQuest2", QuestLvl = 1, MobName = "Female Islander", MobPos = Vector3.new(5400, 600, 750)},
-    {MinLvl = 1775, MaxLvl = 1849, QuestName = "HydraQuest", QuestLvl = 1, MobName = "Giant Mythological", MobPos = Vector3.new(5200, 1000, -300)},
-    {MinLvl = 1850, MaxLvl = 1924, QuestName = "GreatTreeQuest", QuestLvl = 1, MobName = "Musketeer Pirate", MobPos = Vector3.new(-2500, 15, -9600)},
-    {MinLvl = 1925, MaxLvl = 1999, QuestName = "TurtleQuest", QuestLvl = 1, MobName = "Jungle Pirate", MobPos = Vector3.new(-11500, 330, -8800)},
-    {MinLvl = 2000, MaxLvl = 2074, QuestName = "HauntedQuest1", QuestLvl = 1, MobName = "Reborn Skeleton", MobPos = Vector3.new(-9500, 140, 5500)},
-    {MinLvl = 2075, MaxLvl = 2149, QuestName = "HauntedQuest2", QuestLvl = 1, MobName = "Living Zombie", MobPos = Vector3.new(-10100, 140, 6000)},
-    {MinLvl = 2150, MaxLvl = 2224, QuestName = "PeanutQuest", QuestLvl = 1, MobName = "Peanut Scout", MobPos = Vector3.new(-2100, 45, -12200)},
-    {MinLvl = 2225, MaxLvl = 2299, QuestName = "IceCreamQuest", QuestLvl = 1, MobName = "Ice Cream Chef", MobPos = Vector3.new(-800, 65, -11000)},
-    {MinLvl = 2300, MaxLvl = 2399, QuestName = "CookieQuest", QuestLvl = 1, MobName = "Cocoa Warrior", MobPos = Vector3.new(-250, 45, -13000)},
-    {MinLvl = 2400, MaxLvl = 2550, QuestName = "CandyQuest", QuestLvl = 1, MobName = "Candy Rebel", MobPos = Vector3.new(150, 45, -13800)}
+    {MinLvl = 1500, MaxLvl = 1574, QuestName = "PiratePortQuest", QuestLvl = 1, MobName = "Pirate Port", QuestPos = Vector3.new(-2900, 42, 5450), MobPos = Vector3.new(-2900, 42, 5450)},
+    {MinLvl = 1575, MaxLvl = 1699, QuestName = "AmazonQuest", QuestLvl = 1, MobName = "Dragon Crew Warrior", QuestPos = Vector3.new(5800, 50, -2500), MobPos = Vector3.new(5800, 50, -2500)},
+    {MinLvl = 1700, MaxLvl = 1774, QuestName = "AmazonQuest2", QuestLvl = 1, MobName = "Female Islander", QuestPos = Vector3.new(5440, 600, 750), MobPos = Vector3.new(5400, 600, 750)},
+    {MinLvl = 1775, MaxLvl = 1849, QuestName = "HydraQuest", QuestLvl = 1, MobName = "Giant Mythological", QuestPos = Vector3.new(5214, 1004, -315), MobPos = Vector3.new(5200, 1000, -300)},
+    {MinLvl = 1850, MaxLvl = 1924, QuestName = "GreatTreeQuest", QuestLvl = 1, MobName = "Musketeer Pirate", QuestPos = Vector3.new(-2500, 15, -9600), MobPos = Vector3.new(-2500, 15, -9600)},
+    {MinLvl = 1925, MaxLvl = 1999, QuestName = "TurtleQuest", QuestLvl = 1, MobName = "Jungle Pirate", QuestPos = Vector3.new(-11470, 335, -8860), MobPos = Vector3.new(-11500, 330, -8800)},
+    {MinLvl = 2000, MaxLvl = 2074, QuestName = "HauntedQuest1", QuestLvl = 1, MobName = "Reborn Skeleton", QuestPos = Vector3.new(-9515, 142, 5530), MobPos = Vector3.new(-9500, 140, 5500)},
+    {MinLvl = 2075, MaxLvl = 2149, QuestName = "HauntedQuest2", QuestLvl = 1, MobName = "Living Zombie", QuestPos = Vector3.new(-9515, 142, 5530), MobPos = Vector3.new(-10100, 140, 6000)},
+    {MinLvl = 2150, MaxLvl = 2224, QuestName = "PeanutQuest", QuestLvl = 1, MobName = "Peanut Scout", QuestPos = Vector3.new(-2130, 45, -12240), MobPos = Vector3.new(-2100, 45, -12200)},
+    {MinLvl = 2225, MaxLvl = 2299, QuestName = "IceCreamQuest", QuestLvl = 1, MobName = "Ice Cream Chef", QuestPos = Vector3.new(-820, 65, -10980), MobPos = Vector3.new(-800, 65, -11000)},
+    {MinLvl = 2300, MaxLvl = 2399, QuestName = "CookieQuest", QuestLvl = 1, MobName = "Cocoa Warrior", QuestPos = Vector3.new(-250, 45, -13000), MobPos = Vector3.new(-250, 45, -13000)},
+    {MinLvl = 2400, MaxLvl = 2550, QuestName = "CandyQuest", QuestLvl = 1, MobName = "Candy Rebel", QuestPos = Vector3.new(150, 45, -13800), MobPos = Vector3.new(150, 45, -13800)}
 }
 
 -----------------------------------------------------------------------
@@ -197,7 +199,7 @@ local function autoAllocateStats()
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Smooth Noclip Flight Engine (230 studs/sec)
+-- Subsystem: High-Speed Noclip Flight Engine (300 studs/sec)
 -----------------------------------------------------------------------
 local function flyTo(targetCFrame)
     local char = LocalPlayer.Character
@@ -207,17 +209,14 @@ local function flyTo(targetCFrame)
     local humanoid = char:FindFirstChildWhichIsA("Humanoid")
     if not root or not humanoid then return false end
 
-    local startPos = root.Position
     local targetPos = targetCFrame.Position
+    local startPos = root.Position
     local distance = (targetPos - startPos).Magnitude
 
-    if distance < 15 then
+    if distance < 12 then
         root.CFrame = targetCFrame
         return true
     end
-
-    local tweenDuration = distance / FLY_SPEED
-    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 
     local noclipConnection = RunService.Stepped:Connect(function()
         if LocalPlayer.Character then
@@ -229,21 +228,25 @@ local function flyTo(targetCFrame)
         end
     end)
 
+    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
     local bv = Instance.new("BodyVelocity")
-    bv.Velocity = Vector3.zero
+    bv.Velocity = (targetPos - root.Position).Unit * FLY_SPEED
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Parent = root
 
-    local tweenInfo = TweenInfo.new(tweenDuration, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame + Vector3.new(0, 9, 0)})
-
-    tween:Play()
-    tween.Completed:Wait()
+    local startTime = tick()
+    while char and root and (targetPos - root.Position).Magnitude > 10 and (tick() - startTime) < 30 do
+        bv.Velocity = (targetPos - root.Position).Unit * FLY_SPEED
+        root.CFrame = CFrame.new(root.Position, targetPos)
+        task.wait()
+    end
 
     if bv then bv:Destroy() end
     if noclipConnection then noclipConnection:Disconnect() end
     humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 
+    root.CFrame = targetCFrame
     return true
 end
 
@@ -331,9 +334,6 @@ local function autoStoreInventory(tool)
             pcall(function() commF:InvokeServer("StoreFruit", doubleName, tool) end)
             pcall(function() commF:InvokeServer("StoreFruit", rawName, tool) end)
             pcall(function() commF:InvokeServer("StoreFruit", cleanName, tool) end)
-            pcall(function() commF:InvokeServer("StoreFruit", doubleName) end)
-            pcall(function() commF:InvokeServer("StoreFruit", rawName) end)
-            pcall(function() commF:InvokeServer("StoreFruit", cleanName) end)
 
             notify("Fruit Stored", "Сохранен в инвентарь: " .. rawName)
         end
@@ -442,6 +442,18 @@ local function getUnallocatedPoints()
     return pts and pts.Value or 0
 end
 
+local function hasActiveQuest()
+    pcall(function()
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        local mainGui = playerGui and playerGui:FindFirstChild("Main")
+        local questFrame = mainGui and mainGui:FindFirstChild("Quest")
+        if questFrame and questFrame.Visible then
+            return true
+        end
+    end)
+    return false
+end
+
 local function getCurrentQuestConfig()
     local lvl = getPlayerLevel()
     for _, q in ipairs(LEVEL_QUEST_DATABASE) do
@@ -464,7 +476,7 @@ local function attackEnemyTarget(mob)
     if dist > 15 then
         flyTo(mobRoot.CFrame * CFrame.new(0, 9, 0))
     else
-        root.CFrame = mobRoot.CFrame * CFrame.new(0, 9, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+        root.CFrame = mobRoot.CFrame * CFrame.new(0, 8, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 
         pcall(function()
             local enemies = Workspace:FindFirstChild("Enemies")
@@ -473,7 +485,7 @@ local function attackEnemyTarget(mob)
                     if otherMob.Name == mob.Name and otherMob ~= mob then
                         local oPart = otherMob:FindFirstChild("HumanoidRootPart")
                         local oHum = otherMob:FindFirstChildWhichIsA("Humanoid")
-                        if oPart and oHum and oHum.Health > 0 and (oPart.Position - mobRoot.Position).Magnitude < 350 then
+                        if oPart and oHum and oHum.Health > 0 and (oPart.Position - mobRoot.Position).Magnitude < 300 then
                             oPart.CFrame = mobRoot.CFrame
                             oPart.CanCollide = false
                             oHum.WalkSpeed = 0
@@ -502,13 +514,24 @@ local function farmLevelStep()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-    if commF then
-        pcall(function()
-            commF:InvokeServer("StartQuest", questConfig.QuestName, questConfig.QuestLvl)
-        end)
+    -- Check if quest is active; if not, fly to quest giver FIRST!
+    if not hasActiveQuest() then
+        local questDist = (questConfig.QuestPos - root.Position).Magnitude
+        if questDist > 20 then
+            flyTo(CFrame.new(questConfig.QuestPos))
+        else
+            root.CFrame = CFrame.new(questConfig.QuestPos)
+            task.wait(0.2)
+            local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+            if commF then
+                commF:InvokeServer("StartQuest", questConfig.QuestName, questConfig.QuestLvl)
+            end
+            task.wait(0.3)
+        end
+        return
     end
 
+    -- Quest is active, look for target mob
     local mobFound = false
     local enemies = Workspace:FindFirstChild("Enemies")
     if enemies then
@@ -746,5 +769,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Farm Engine", "⚡ High-Speed Safe Farm v26.0 Active!")
-print("[+] Blox Fruits v26.0 High-Speed Active.")
+notify("Master Farm Engine", "⚡ Real Auto-Farm v27.0 Active!")
+print("[+] Blox Fruits v27.0 Real Auto-Farm Active.")
