@@ -1,12 +1,12 @@
 -- ====================================================================
--- Blox Fruits Ultra Precision Server Hopper & Fruit Harvester v33.0
+-- Blox Fruits Ultra Precision Server Hopper & Fruit Harvester v34.0
 -- File: script.lua
--- Features: 1. Ascending API Pagination Server Hopper (Sorts by fewest players 1-3 FIRST)
---           2. Deep Page Scanner (Scans up to 20 pages / 2,000+ servers)
---           3. Persistent Server Blacklist & Teleport Failure Event Handling
---           4. Priority Fruit Harvester & Auto Fruit Storage
---           5. Auto-Dismiss Error Popups (Error 773 / Full Server prompts)
---           6. Real-Time Telemetry Dashboard GUI
+-- Features: 1. Ultra Fast Auto-OK Error Dismiss Engine (Scans CoreGui every 0.1s)
+--           2. Robust Teleport Failure Recovery & Blacklist System
+--           3. Ascending API Pagination Server Hopper (1 to 3 Players FIRST)
+--           4. Deep 20-Page API Scanner (2,000+ Servers scanned)
+--           5. Priority Fruit Harvester & Auto Storage Engine
+--           6. Sleek Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -76,45 +76,83 @@ end
 local ultraServerHop
 
 -----------------------------------------------------------------------
--- Subsystem: Teleport Failure Listener & Auto-Recovery
+-- Subsystem 1: Ultra Fast Auto-OK Error Dismiss & Teleport Recovery Engine
 -----------------------------------------------------------------------
-TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-    pcall(function()
-        notify("Teleport Error", "⚠️ Ошибка телепортации (" .. tostring(teleportResult) .. "). Ищем другой сервер...")
-        task.wait(1)
-        if ultraServerHop then ultraServerHop() end
-    end)
-end)
+local isHoppingCurrently = false
 
------------------------------------------------------------------------
--- Subsystem: Auto-Dismiss Error Popups (Error 773 / Full Server / Disconnect)
------------------------------------------------------------------------
-local function autoDismissErrorPopups()
+local function pressButton(button)
+    pcall(function()
+        if firesignal then
+            firesignal(button.MouseButton1Click)
+            firesignal(button.MouseButton1Down)
+            firesignal(button.Activated)
+        end
+        if getconnections then
+            for _, conn in ipairs(getconnections(button.MouseButton1Click)) do
+                pcall(function() conn:Fire() end)
+            end
+            for _, conn in ipairs(getconnections(button.Activated)) do
+                pcall(function() conn:Fire() end)
+            end
+        end
+    end)
+end
+
+local function autoDismissErrorPopupsEngine()
     task.spawn(function()
         while true do
-            task.wait(0.5)
+            task.wait(0.1) -- 100ms ultra-fast response loop
             pcall(function()
+                -- 1. Scan Roblox System Error Prompt Overlay
                 local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
-                local promptOverlay = robloxPromptGui and robloxPromptGui:FindFirstChild("promptOverlay")
-                if promptOverlay then
-                    local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
-                    if errorPrompt and errorPrompt.Visible then
-                        local buttonArea = errorPrompt:FindFirstChild("ButtonArea")
-                        if buttonArea then
-                            for _, btn in ipairs(buttonArea:GetChildren()) do
+                if robloxPromptGui then
+                    local promptOverlay = robloxPromptGui:FindFirstChild("promptOverlay")
+                    if promptOverlay then
+                        local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
+                        if errorPrompt and errorPrompt.Visible then
+                            for _, btn in ipairs(errorPrompt:GetDescendants()) do
                                 if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-                                    if firesignal then
-                                        firesignal(btn.MouseButton1Click)
-                                    else
-                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                                    pressButton(btn)
+                                end
+                            end
+                            notify("Auto OK", "⚡ Ошибка сервера авто-устранена (ОК)! Поиск нового...")
+                            if ultraServerHop and not isHoppingCurrently then
+                                isHoppingCurrently = true
+                                task.wait(0.2)
+                                ultraServerHop()
+                            end
+                        end
+                    end
+                end
+
+                -- 2. Scan Generic CoreGui Error Overlays & Dialogs
+                for _, child in ipairs(CoreGui:GetChildren()) do
+                    if child:IsA("ScreenGui") and string.find(string.lower(child.Name), "error") or string.find(string.lower(child.Name), "prompt") then
+                        for _, btn in ipairs(child:GetDescendants()) do
+                            if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and btn.Visible then
+                                local txt = string.lower(btn.Text or btn.Name or "")
+                                if txt == "ok" or txt == "reconnect" or txt == "leave" or string.find(txt, "confirm") or string.find(txt, "dismiss") then
+                                    pressButton(btn)
+                                end
+                            end
+                        end
+                    end
+                end
+
+                -- 3. Scan In-Game PlayerGui Teleport Error Dialogs
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, gui in ipairs(playerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") and gui.Enabled then
+                            for _, desc in ipairs(gui:GetDescendants()) do
+                                if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and desc.Visible then
+                                    local txt = string.lower(desc.Text or desc.Name or "")
+                                    if txt == "ok" or txt == "reconnect" or txt == "leave" or string.find(txt, "full") or string.find(txt, "error") then
+                                        pressButton(desc)
                                     end
                                 end
                             end
                         end
-                        notify("Auto OK", "⚠️ Ошибка серверов! Нажато ОК, ищем пустой сервер...")
-                        task.wait(0.5)
-                        if ultraServerHop then ultraServerHop() end
                     end
                 end
             end)
@@ -122,13 +160,28 @@ local function autoDismissErrorPopups()
     end)
 end
 
-autoDismissErrorPopups()
+autoDismissErrorPopupsEngine()
+
+-- Listener for Roblox Teleport Failures
+TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
+    pcall(function()
+        notify("Teleport Failed", "⚠️ Ошибка входа (" .. tostring(teleportResult) .. "). Резервный сервер...")
+        if ultraServerHop and not isHoppingCurrently then
+            isHoppingCurrently = true
+            task.wait(0.3)
+            ultraServerHop()
+        end
+    end)
+end)
 
 GuiService.ErrorMessageChanged:Connect(function()
     pcall(function()
-        notify("Auto Error Dismiss", "⚠️ Перезапуск поиска малонаселенного сервера...")
-        task.wait(0.5)
-        if ultraServerHop then ultraServerHop() end
+        notify("Auto OK Engine", "⚠️ Системная ошибка! Нажато ОК, ищем пустой сервер...")
+        if ultraServerHop and not isHoppingCurrently then
+            isHoppingCurrently = true
+            task.wait(0.3)
+            ultraServerHop()
+        end
     end)
 end)
 
@@ -151,7 +204,7 @@ local function autoSelectPiratesTeam()
                     if chooseTeam and chooseTeam.Visible then
                         for _, desc in ipairs(chooseTeam:GetDescendants()) do
                             if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and string.find(string.lower(desc.Name), "pirate") then
-                                if firesignal then firesignal(desc.MouseButton1Click) end
+                                pressButton(desc)
                             end
                         end
                     end
@@ -168,14 +221,14 @@ autoSelectPiratesTeam()
 -- Subsystem: Ultra Precision Ascending Server Hopper Engine
 -----------------------------------------------------------------------
 ultraServerHop = function()
-    notify("Precision Hopper", "🔎 Поиск сервера (1-3 игрока, Ascending)...")
+    isHoppingCurrently = true
+    notify("Precision Hopper", "🔎 Поиск сервера (1-3 игрока)...")
     _G.VisitedServersHistory[JobId] = true
 
     local pageCursor = ""
-    local bestCandidate = nil
-    local lowestPlayerCount = 99
+    local candidateServers = {}
 
-    -- Scan up to 20 pages (2,000 servers) sorting by ascending player count
+    -- Deep scan up to 20 pages (2,000 servers) sorted by ascending player count
     for page = 1, 20 do
         local apiUrl = string.format(
             "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s",
@@ -192,17 +245,14 @@ ultraServerHop = function()
             if decoded and decoded.data then
                 for _, server in ipairs(decoded.data) do
                     local count = server.playing
-                    -- Strict filter: Must be between 1 and 3 players, not current server, not visited
+                    -- Strict Filter: Must be 1 to 3 players, not current server, not visited/failed
                     if server.id ~= JobId and count >= _G.MinServerPlayers and count <= _G.MaxServerPlayers and not _G.VisitedServersHistory[server.id] then
-                        if count < lowestPlayerCount then
-                            lowestPlayerCount = count
-                            bestCandidate = server
-                        end
+                        table.insert(candidateServers, server)
                     end
                 end
 
-                if bestCandidate and lowestPlayerCount <= 2 then
-                    break -- Found an optimal 1-2 player server!
+                if #candidateServers >= 5 then
+                    break -- Collected enough optimal candidates!
                 end
 
                 if decoded.nextPageCursor then
@@ -215,9 +265,11 @@ ultraServerHop = function()
         task.wait(0.05)
     end
 
-    if bestCandidate then
-        notify("Precision Hopper", string.format("🚀 Найден идеальный сервер (%d чел)! Вход...", lowestPlayerCount))
-        _G.VisitedServersHistory[bestCandidate.id] = true
+    if #candidateServers > 0 then
+        -- Pick a random server from candidates to prevent target collisions
+        local chosenServer = candidateServers[math.random(1, #candidateServers)]
+        notify("Precision Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", chosenServer.playing))
+        _G.VisitedServersHistory[chosenServer.id] = true
 
         -- Queue script execution on teleport
         local loaderCode = string.format([[
@@ -229,12 +281,14 @@ ultraServerHop = function()
         if queueFunc then pcall(function() queueFunc(loaderCode) end) end
 
         local tpSuccess = pcall(function()
-            TeleportService:TeleportToPlaceInstance(PlaceId, bestCandidate.id, LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(PlaceId, chosenServer.id, LocalPlayer)
         end)
 
         if not tpSuccess then
-            notify("Hopper Error", "⚠️ Не удалось войти на сервер, ищем другой...")
-            task.wait(1)
+            _G.VisitedServersHistory[chosenServer.id] = true
+            notify("Hopper Error", "⚠️ Не удалось войти на сервер, ищем резервный...")
+            task.wait(0.5)
+            isHoppingCurrently = false
             ultraServerHop()
         end
     else
@@ -259,6 +313,7 @@ ultraServerHop = function()
 
         if fallbackServer then
             notify("Precision Hopper", "🚀 Переход на сервер (4 чел)...")
+            _G.VisitedServersHistory[fallbackServer.id] = true
             TeleportService:TeleportToPlaceInstance(PlaceId, fallbackServer.id, LocalPlayer)
         else
             notify("Precision Hopper", "⚠️ Запуск случайного переподключения...")
@@ -333,9 +388,9 @@ local function autoHandleInGameFruitMenu()
                     if btn:IsA("TextButton") or btn:IsA("ImageButton") then
                         local txt = string.lower(btn.Text or btn.Name or "")
                         if txt == "store" or string.find(txt, "store") then
-                            if firesignal then firesignal(btn.MouseButton1Click) end
+                            pressButton(btn)
                         elseif txt == "nevermind" or string.find(txt, "nevermind") then
-                            if firesignal then firesignal(btn.MouseButton1Click) end
+                            pressButton(btn)
                         end
                     end
                 end
@@ -545,7 +600,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ ULTRA PRECISION SERVER HOPPER"
+TitleLabel.Text = "⚡ ULTRA PRECISION SERVER HOPPER v34.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -676,10 +731,10 @@ task.spawn(function()
                 task.wait(1.0)
             else
                 -- Priority 2: Ultra Precision Server Hop (Ascending Player Count 1-3)
-                if _G.AutoServerHop then
+                if _G.AutoServerHop and not isHoppingCurrently then
                     TaskLabel.Text = "🚀 СКАН СЕРВЕРОВ (1-3 ИГРОКА)..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
-                    task.wait(0.5)
+                    task.wait(0.3)
                     ultraServerHop()
                 end
             end
@@ -687,5 +742,5 @@ task.spawn(function()
     end
 end)
 
-notify("Ultra Precision Hopper v33.0", "⚡ Сервер Хоппер (Ascending 1-3 Игрока) АКТИВЕН!")
-print("[+] Blox Fruits v33.0 Ultra Precision Ascending Server Hopper Active.")
+notify("Ultra Precision Hopper v34.0", "⚡ 100ms Auto-OK & Fast Teleport Recovery Active!")
+print("[+] Blox Fruits v34.0 100ms Auto-OK Engine Active.")
