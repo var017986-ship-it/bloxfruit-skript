@@ -1,12 +1,11 @@
 -- ====================================================================
--- Blox Fruits Ultimate Autonomous Level Automator v27.0
+-- Blox Fruits Melee Auto-Farm Engine v28.0
 -- File: script.lua
--- Features: 1. Full Quest & Mob Matrix with Quest Giver Coordinates (1 to 2550)
---           2. Active Quest Detector (Flies to Quest Giver FIRST when no quest active)
---           3. High-Speed Noclip BodyVelocity Flight (300 studs/sec)
---           4. Mob Magnet & Cluster Auto-Attack Engine
---           5. Auto Stat Allocation & Priority Fruit Storage
---           6. Real-Time Telemetry Dashboard GUI
+-- Fixes: 1. Reliable Melee Weapon Auto-Equip (Bypasses empty ToolTip bugs)
+--        2. Target Mob Hover & Kill Loop (Flies 6 studs above mob, strikes with Melee)
+--        3. Instant Mob-to-Mob Traversal (As soon as mob dies, flies to next mob)
+--        4. Mob Magnet & Cluster Striker
+--        5. High-Speed Noclip Flight (300 studs/sec)
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -213,7 +212,7 @@ local function flyTo(targetCFrame)
     local startPos = root.Position
     local distance = (targetPos - startPos).Magnitude
 
-    if distance < 12 then
+    if distance < 10 then
         root.CFrame = targetCFrame
         return true
     end
@@ -236,7 +235,7 @@ local function flyTo(targetCFrame)
     bv.Parent = root
 
     local startTime = tick()
-    while char and root and (targetPos - root.Position).Magnitude > 10 and (tick() - startTime) < 30 do
+    while char and root and (targetPos - root.Position).Magnitude > 8 and (tick() - startTime) < 30 do
         bv.Velocity = (targetPos - root.Position).Unit * FLY_SPEED
         root.CFrame = CFrame.new(root.Position, targetPos)
         task.wait()
@@ -251,23 +250,28 @@ local function flyTo(targetCFrame)
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Auto Weapon Equipping
+-- Subsystem: Reliable Melee Weapon Equipping
 -----------------------------------------------------------------------
-local function autoEquipCombatWeapon()
+local function equipMeleeWeapon()
     pcall(function()
         local char = LocalPlayer.Character
         local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
         if not humanoid then return end
 
         local currentTool = char:FindFirstChildWhichIsA("Tool")
-        if currentTool then return end
+        if currentTool then
+            local isFruit = string.find(currentTool.Name, "Fruit") or string.find(currentTool.Name, "Blox")
+            if not isFruit then
+                return -- Already holding a melee/combat tool
+            end
+        end
 
         local backpack = LocalPlayer:FindFirstChild("Backpack")
         if backpack then
             for _, tool in ipairs(backpack:GetChildren()) do
                 if tool:IsA("Tool") then
-                    local tt = tool.ToolTip or ""
-                    if tt == "Melee" or tt == "Sword" or tt == "Blox Fruit" then
+                    local isFruit = string.find(tool.Name, "Fruit") or string.find(tool.Name, "Blox")
+                    if not isFruit then
                         humanoid:EquipTool(tool)
                         break
                     end
@@ -464,57 +468,18 @@ local function getCurrentQuestConfig()
     return LEVEL_QUEST_DATABASE[#LEVEL_QUEST_DATABASE]
 end
 
-local function attackEnemyTarget(mob)
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local mobRoot = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChildWhichIsA("BasePart")
-    local mobHum = mob:FindFirstChildWhichIsA("Humanoid")
-
-    if not root or not mobRoot or not mobHum or mobHum.Health <= 0 then return end
-
-    local dist = (mobRoot.Position - root.Position).Magnitude
-    if dist > 15 then
-        flyTo(mobRoot.CFrame * CFrame.new(0, 9, 0))
-    else
-        root.CFrame = mobRoot.CFrame * CFrame.new(0, 8, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-
-        pcall(function()
-            local enemies = Workspace:FindFirstChild("Enemies")
-            if enemies then
-                for _, otherMob in ipairs(enemies:GetChildren()) do
-                    if otherMob.Name == mob.Name and otherMob ~= mob then
-                        local oPart = otherMob:FindFirstChild("HumanoidRootPart")
-                        local oHum = otherMob:FindFirstChildWhichIsA("Humanoid")
-                        if oPart and oHum and oHum.Health > 0 and (oPart.Position - mobRoot.Position).Magnitude < 300 then
-                            oPart.CFrame = mobRoot.CFrame
-                            oPart.CanCollide = false
-                            oHum.WalkSpeed = 0
-                        end
-                    end
-                end
-            end
-        end)
-
-        autoEquipCombatWeapon()
-
-        pcall(function()
-            local tool = char:FindFirstChildWhichIsA("Tool")
-            if tool then tool:Activate() end
-            VirtualUser:CaptureController()
-            VirtualUser:Button1Down(Vector2.new(500, 500), Workspace.CurrentCamera.CFrame)
-        end)
-    end
-end
-
 local function farmLevelStep()
     autoAllocateStats()
 
     local questConfig = getCurrentQuestConfig()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+    if not root or not humanoid then return end
 
-    -- Check if quest is active; if not, fly to quest giver FIRST!
+    equipMeleeWeapon()
+
+    -- 1. Ensure Quest is Active
     if not hasActiveQuest() then
         local questDist = (questConfig.QuestPos - root.Position).Magnitude
         if questDist > 20 then
@@ -531,24 +496,68 @@ local function farmLevelStep()
         return
     end
 
-    -- Quest is active, look for target mob
-    local mobFound = false
+    -- 2. Find target mob in Workspace.Enemies
+    local targetMob = nil
     local enemies = Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, mob in ipairs(enemies:GetChildren()) do
             if string.find(mob.Name, questConfig.MobName) then
-                local humanoid = mob:FindFirstChildWhichIsA("Humanoid")
-                local part = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChildWhichIsA("BasePart")
-                if humanoid and humanoid.Health > 0 and part then
-                    mobFound = true
-                    attackEnemyTarget(mob)
-                    return
+                local mobHum = mob:FindFirstChildWhichIsA("Humanoid")
+                local mobPart = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChildWhichIsA("BasePart")
+                if mobHum and mobHum.Health > 0 and mobPart then
+                    targetMob = mob
+                    break
                 end
             end
         end
     end
 
-    if not mobFound then
+    -- 3. Fly to mob, hover 6 studs directly above, and execute Melee attacks!
+    if targetMob then
+        local mobPart = targetMob:FindFirstChild("HumanoidRootPart") or targetMob:FindFirstChildWhichIsA("BasePart")
+        local mobHum = targetMob:FindFirstChildWhichIsA("Humanoid")
+
+        if mobPart and mobHum then
+            local hoverCFrame = mobPart.CFrame * CFrame.new(0, 6, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+            local dist = (mobPart.Position - root.Position).Magnitude
+
+            if dist > 10 then
+                flyTo(hoverCFrame)
+            else
+                root.CFrame = hoverCFrame
+            end
+
+            equipMeleeWeapon()
+
+            -- Mob Magnet (Pulls nearby same-named mobs together)
+            pcall(function()
+                if enemies then
+                    for _, otherMob in ipairs(enemies:GetChildren()) do
+                        if otherMob.Name == targetMob.Name and otherMob ~= targetMob then
+                            local oPart = otherMob:FindFirstChild("HumanoidRootPart")
+                            local oHum = otherMob:FindFirstChildWhichIsA("Humanoid")
+                            if oPart and oHum and oHum.Health > 0 and (oPart.Position - mobPart.Position).Magnitude < 300 then
+                                oPart.CFrame = mobPart.CFrame
+                                oPart.CanCollide = false
+                                oHum.WalkSpeed = 0
+                            end
+                        end
+                    end
+                end
+            end)
+
+            -- Fast Melee Combat Execution
+            pcall(function()
+                local tool = char:FindFirstChildWhichIsA("Tool")
+                if tool then
+                    tool:Activate()
+                end
+                VirtualUser:CaptureController()
+                VirtualUser:Button1Down(Vector2.new(500, 500), Workspace.CurrentCamera.CFrame)
+            end)
+        end
+    else
+        -- If mob not spawned yet, fly to mob spawn location
         flyTo(CFrame.new(questConfig.MobPos))
     end
 end
@@ -745,7 +754,7 @@ end)
 -- Main Loop
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(0.2)
         
         pcall(function()
             LevelLabel.Text = "📜 УРОВЕНЬ: " .. getPlayerLevel() .. " / 2550"
@@ -758,7 +767,7 @@ task.spawn(function()
             if fruitHarvested then
                 TaskLabel.Text = "🍊 ФРУКТ СОБРАН И СОХРАНЕН!"
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
-                task.wait(1.0)
+                task.wait(0.5)
             else
                 local q = getCurrentQuestConfig()
                 TaskLabel.Text = "⚔️ ФАРМ: " .. q.MobName .. " (Lvl " .. q.MinLvl .. "-" .. q.MaxLvl .. ")"
@@ -769,5 +778,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Farm Engine", "⚡ Real Auto-Farm v27.0 Active!")
-print("[+] Blox Fruits v27.0 Real Auto-Farm Active.")
+notify("Master Farm Engine", "⚡ Melee Target Striker v28.0 Active!")
+print("[+] Blox Fruits v28.0 Melee Target Striker Active.")
