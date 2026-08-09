@@ -204,6 +204,19 @@ local function flyToTarget(targetCFrame)
 end
 
 -----------------------------------------------------------------------
+-- Subsystem: Safe Teleport Queue Hook (Executes ONLY during server hop)
+-----------------------------------------------------------------------
+local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
+local QUEUE_CODE = 'task.spawn(function() pcall(function() repeat task.wait(1) until game:IsLoaded() and game.Players and game.Players.LocalPlayer; task.wait(1.5); loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
+
+local function safeQueueOnTeleport()
+    pcall(function()
+        local q = queue_on_teleport or queueonteleport or (ArceusX and ArceusX.QueueOnTeleport) or (getgenv and getgenv().queue_on_teleport)
+        if q then q(QUEUE_CODE) end
+    end)
+end
+
+-----------------------------------------------------------------------
 -- Subsystem: Main Universe Guaranteed Server Hopper Engine
 -----------------------------------------------------------------------
 executeFastHop = function()
@@ -247,6 +260,7 @@ executeFastHop = function()
     if candidateServer then
         _G.VisitedServersHistory[candidateServer.id] = true
         
+        safeQueueOnTeleport()
         local tpSuccess = pcall(function()
             TeleportService:TeleportToPlaceInstance(MAIN_UNIVERSE_PLACE_ID, candidateServer.id, LocalPlayer)
         end)
@@ -258,6 +272,7 @@ executeFastHop = function()
         end
     end
 
+    safeQueueOnTeleport()
     pcall(function()
         TeleportService:Teleport(MAIN_UNIVERSE_PLACE_ID, LocalPlayer)
     end)
