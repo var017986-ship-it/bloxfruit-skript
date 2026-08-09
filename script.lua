@@ -1,12 +1,12 @@
 -- ====================================================================
--- Blox Fruits Harvester, Chest Collector & Server Hopper v30.0
+-- Blox Fruits Harvester, Chest Collector & Server Hopper v31.0
 -- File: script.lua
 -- Features: 1. Priority Fruit Harvester (Instant Teleport, Pickup & Auto-Store)
 --           2. Chest Collector Engine (Auto Farms Silver, Gold & Diamond Chests for Beli)
 --           3. Ultra-Low Player Server Hopper (1 to 4 Players ONLY, Paginated 600+ Scan)
---           4. Gacha Cousin Fruit Buyer (Auto buys random fruit when Beli >= $250k)
---           5. Auto Stat Point Allocator (Melee / Defense / Fruit)
---           6. Real-Time Telemetry Dashboard GUI
+--           4. Auto-Dismiss "Server Full" & Error 773 Popups (Auto-Clicks OK & Re-hops)
+--           5. Gacha Cousin Fruit Buyer (Auto buys random fruit when Beli >= $250k)
+--           6. Auto Stat Point Allocator & Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -100,6 +100,74 @@ local function notify(title, text)
         })
     end)
 end
+
+-----------------------------------------------------------------------
+-- Forward Declaration of serverHop
+-----------------------------------------------------------------------
+local serverHop
+
+-----------------------------------------------------------------------
+-- Subsystem: Auto-Dismiss Error Popups (Error 773 / Server Full / Disconnect)
+-----------------------------------------------------------------------
+local function autoDismissErrorPopups()
+    task.spawn(function()
+        while true do
+            task.wait(0.5)
+            pcall(function()
+                local robloxPromptGui = CoreGui:FindFirstChild("RobloxPromptGui")
+                local promptOverlay = robloxPromptGui and robloxPromptGui:FindFirstChild("promptOverlay")
+                if promptOverlay then
+                    local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
+                    if errorPrompt and errorPrompt.Visible then
+                        local buttonArea = errorPrompt:FindFirstChild("ButtonArea")
+                        if buttonArea then
+                            for _, btn in ipairs(buttonArea:GetChildren()) do
+                                if btn:IsA("TextButton") or btn:IsA("ImageButton") then
+                                    if firesignal then
+                                        firesignal(btn.MouseButton1Click)
+                                    else
+                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                                    end
+                                end
+                            end
+                        end
+                        notify("Auto OK", "⚠️ Обнаружена ошибка серверов! Нажато ОК, ищем новый...")
+                        task.wait(0.5)
+                        if serverHop then serverHop() end
+                    end
+                end
+
+                -- In-game Teleport / Full Error dialogs
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if playerGui then
+                    for _, gui in ipairs(playerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") and gui.Enabled then
+                            for _, descendant in ipairs(gui:GetDescendants()) do
+                                if (descendant:IsA("TextButton") or descendant:IsA("ImageButton")) and descendant.Visible then
+                                    local txt = string.lower(descendant.Text or descendant.Name or "")
+                                    if txt == "ok" or txt == "reconnect" or txt == "leave" or string.find(txt, "full") then
+                                        if firesignal then firesignal(descendant.MouseButton1Click) end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+autoDismissErrorPopups()
+
+GuiService.ErrorMessageChanged:Connect(function()
+    pcall(function()
+        notify("Auto Error Dismiss", "⚠️ Ошибка подключения! Перезапуск поиска...")
+        task.wait(0.5)
+        if serverHop then serverHop() end
+    end)
+end)
 
 -----------------------------------------------------------------------
 -- Subsystem: Auto Team Selector (Pirates)
@@ -212,7 +280,7 @@ end
 -----------------------------------------------------------------------
 -- Subsystem: Ultra-Low Player Server Hopper (1 to 4 Players ONLY)
 -----------------------------------------------------------------------
-local function serverHop()
+serverHop = function()
     notify("Server Hopper", "🔎 Поиск сервера (1-4 игрока)...")
     _G.FailedServersList[JobId] = true
 
@@ -718,5 +786,5 @@ task.spawn(function()
     end
 end)
 
-notify("Harvester & Hopper v30.0", "⚡ Сбор сундуков, фруктов и ХОП (1-4 чел) АКТИВЕН!")
-print("[+] Blox Fruits v30.0 Harvester & Low-Player Hopper Active.")
+notify("Harvester & Hopper v31.0", "⚡ Сбор сундуков, фруктов + Auto-OK Ошибок АКТИВЕН!")
+print("[+] Blox Fruits v31.0 Auto-OK Error Dismiss Engine Active.")
