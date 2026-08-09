@@ -1,14 +1,14 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Crash-Proof Hopper v61.0
+-- Blox Fruits Master Harvester & Ultra-Stable Server Hopper v62.0
 -- File: script.lua
--- Fixes: 1. Complete resolution of Roblox Android Crashes (Double Execution Prevention)
---        2. Memory-Safe Isolated Execution Engine
+-- Fixes: 1. Fixed syntax error on line 235 (rawData then instead of rawData me)
+--        2. Clean single-session protection
 --        3. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
 --        4. Pure Fruit Harvester & Auto Storage Engine (140 studs/sec Smooth Flight)
 --        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
 
--- 1. Strict Double-Execution Protection (Prevents BlueStacks Crashes)
+-- 1. Singleton Session Protection
 if getgenv and getgenv().BloxMasterRunning then
     print("[!] Script is already active on this session. Skipping double run.")
     return
@@ -232,7 +232,7 @@ executeFastHop = function()
         end
     end)
 
-    if requestSuccess and rawData me
+    if requestSuccess and rawData then
         pcall(function()
             local decoded = HttpService:JSONDecode(rawData)
             if decoded and decoded.data then
@@ -471,7 +471,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v61.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v62.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -615,5 +615,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v61.0", "⚡ 100% АНТИ-КРАШ РЕЖИМ ВКЛЮЧЕН!")
-print("[+] Blox Fruits v61.0 Isolated Execution Active.")
+notify("Master Harvester v62.0", "⚡ 100% СТАБИЛЬНЫЙ КОД АКТИВЕН!")
+print("[+] Blox Fruits v62.0 Fixed Syntax Engine Active.")
