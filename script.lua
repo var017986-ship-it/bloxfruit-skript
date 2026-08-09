@@ -24,8 +24,8 @@ local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 
--- Main Universe Blox Fruits PlaceID (First Sea / Root Universe)
-local MAIN_UNIVERSE_PLACE_ID = 2753915549
+-- Dynamic Sea Detection (1st Sea: 2753915549, 2nd Sea: 4442272183, 3rd Sea: 7449423635)
+local CURRENT_SEA_PLACE_ID = (PlaceId == 2753915549 or PlaceId == 4442272183 or PlaceId == 7449423635) and PlaceId or PlaceId
 
 -- Master Configuration Flags
 _G.AutoFarmMaster = true
@@ -239,12 +239,12 @@ executeFastHop = function()
         local req = (syn and syn.request) or (http and http.request) or http_request or request
         if req then
             local res = req({
-                Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", MAIN_UNIVERSE_PLACE_ID),
+                Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", CURRENT_SEA_PLACE_ID),
                 Method = "GET"
             })
             return res and res.Body
         else
-            return game:HttpGet(string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", MAIN_UNIVERSE_PLACE_ID))
+            return game:HttpGet(string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", CURRENT_SEA_PLACE_ID))
         end
     end)
 
@@ -267,7 +267,7 @@ executeFastHop = function()
         
         safeQueueOnTeleport()
         local tpSuccess = pcall(function()
-            TeleportService:TeleportToPlaceInstance(MAIN_UNIVERSE_PLACE_ID, candidateServer.id, LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(CURRENT_SEA_PLACE_ID, candidateServer.id, LocalPlayer)
         end)
 
         if tpSuccess then
@@ -279,7 +279,7 @@ executeFastHop = function()
 
     safeQueueOnTeleport()
     pcall(function()
-        TeleportService:Teleport(MAIN_UNIVERSE_PLACE_ID, LocalPlayer)
+        TeleportService:Teleport(CURRENT_SEA_PLACE_ID, LocalPlayer)
     end)
 
     task.wait(4.0)
