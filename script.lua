@@ -246,7 +246,6 @@ executeFastHop = function()
 
     if candidateServer then
         _G.VisitedServersHistory[candidateServer.id] = true
-        notify("Server Hopper", string.format("🚀 Найден сервер (%d чел)! Вход...", candidateServer.playing))
         
         local tpSuccess = pcall(function()
             TeleportService:TeleportToPlaceInstance(MAIN_UNIVERSE_PLACE_ID, candidateServer.id, LocalPlayer)
@@ -259,7 +258,6 @@ executeFastHop = function()
         end
     end
 
-    notify("Server Hopper", "⚡ Вход на открытый сервер...")
     pcall(function()
         TeleportService:Teleport(MAIN_UNIVERSE_PLACE_ID, LocalPlayer)
     end)
@@ -351,7 +349,6 @@ local function autoStoreInventory(tool)
             pcall(function() commF:InvokeServer("StoreFruit", cleanName, tool) end)
 
             _G.FruitsCollectedCounter = _G.FruitsCollectedCounter + 1
-            notify("Fruit Stored", "Сохранен в инвентарь: " .. rawName)
         end
 
         autoHandleInGameFruitMenu()
@@ -361,7 +358,6 @@ local function autoStoreInventory(tool)
             _G.UnstorableFruits[rawName] = true
             pcall(function()
                 if humanoid then humanoid:UnequipTools() end
-                notify("Инвентарь полон", "Оставлен в рюкзаке: " .. rawName)
             end)
         end
     end)
@@ -601,13 +597,11 @@ ToggleBtn.MouseButton1Click:Connect(function()
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
         TaskLabel.Text = "🟢 ПЛАВНЫЙ СБОР И СЕРВЕР ХОП..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
-        notify("Harvester Engine", "🟢 Поиск запущен")
     else
         ToggleBtn.Text = "🔴 СБОР И ХОППЕР ВЫКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
         TaskLabel.Text = "🔴 СТАТУС: ВЫКЛЮЧЕНО"
         TaskLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        notify("Harvester Engine", "🔴 Поиск остановлен")
     end
 end)
 
@@ -642,5 +636,4 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v68.0", "⚡ СКИПТ УСПЕШНО ВОССТАНОВЛЕН!")
-print("[+] Blox Fruits v68.0 Clean Stable Build Restored.")
+print("[+] Blox Fruits v69.0 Minimal Notifications Active.")
