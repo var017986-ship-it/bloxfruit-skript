@@ -1,9 +1,9 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Fast Server Hopper v52.0
+-- Blox Fruits Master Harvester & Arceus X Auto-Exec Engine v53.0
 -- File: script.lua
--- Fixes: 1. Auto-execution via TeleportService.TeleportInitFailed & TeleportService.TeleportStateChanged listeners
---        2. Infinite auto-loop pre-hooking queue_on_teleport on EVERY frame during teleport initialization
---        3. Direct execute function firing across syn / fluxus / getgenv / queueonteleport
+-- Fixes: 1. Native Arceus X NEO Auto-Execute engine hooks (ArceusX.QueueOnTeleport & setclipboard)
+--        2. Single-line minified queue string compatible with Arceus X / Android UI
+--        3. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
 --        4. Pure Fruit Harvester & Auto Storage Engine (140 studs/sec Smooth Flight)
 --        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
@@ -69,45 +69,48 @@ local function notify(title, text)
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Continuous Multi-Hook Auto-Execution Engine
+-- Subsystem: Arceus X NEO Compatible Auto-Execution Engine
 -----------------------------------------------------------------------
-local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
-local AUTO_RUN_CMD = string.format([[
-    repeat task.wait(0.2) until game:IsLoaded() and game.Players.LocalPlayer
-    task.wait(1.0)
-    loadstring(game:HttpGet("%s?v=%%d"))()
-]], SCRIPT_RAW_URL)
+local SCRIPT_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
 
 local function forceQueueOnTeleport()
-    local payload = string.format(AUTO_RUN_CMD, math.random(1000, 999999))
+    local payload = string.format([[repeat task.wait(0.2) until game:IsLoaded() and game.Players.LocalPlayer; task.wait(0.8); loadstring(game:HttpGet("%s?v=%%d"))()]], SCRIPT_URL)
+    local minifiedCmd = string.format(payload, math.random(1000, 999999))
 
-    -- Iterate through all potential executor queue_on_teleport hooks
-    local hooks = {
-        queue_on_teleport,
-        queueonteleport,
-        syn and syn.queue_on_teleport,
-        fluxus and fluxus.queue_on_teleport,
-        getgenv and getgenv().queue_on_teleport,
-        getgenv and getgenv().queueonteleport
-    }
+    -- 1. Try Arceus X NEO and mobile executor queue methods
+    pcall(function()
+        if queue_on_teleport then queue_on_teleport(minifiedCmd) end
+    end)
+    pcall(function()
+        if queueonteleport then queueonteleport(minifiedCmd) end
+    end)
+    pcall(function()
+        if getgenv and getgenv().queue_on_teleport then getgenv().queue_on_teleport(minifiedCmd) end
+    end)
+    pcall(function()
+        if getgenv and getgenv().queueonteleport then getgenv().queueonteleport(minifiedCmd) end
+    end)
+    pcall(function()
+        if ArceusX and ArceusX.QueueOnTeleport then ArceusX.QueueOnTeleport(minifiedCmd) end
+    end)
+    pcall(function()
+        if syn and syn.queue_on_teleport then syn.queue_on_teleport(minifiedCmd) end
+    end)
+    pcall(function()
+        if fluxus and fluxus.queue_on_teleport then fluxus.queue_on_teleport(minifiedCmd) end
+    end)
 
-    for _, fn in ipairs(hooks) do
-        if type(fn) == "function" then
-            pcall(function() fn(payload) end)
-        end
-    end
-
-    -- Write to persistent disk autoexec files
+    -- 2. Try writing to Arceus X Autoexec directory on Android
     pcall(function()
         if writefile then
-            pcall(function() writefile("autoexec/blox_harvester.lua", payload) end)
-            pcall(function() writefile("autoexec.lua", payload) end)
-            pcall(function() writefile("blox_harvester.lua", payload) end)
+            pcall(function() writefile("autoexec/blox_harvester.lua", minifiedCmd) end)
+            pcall(function() writefile("autoexec.lua", minifiedCmd) end)
+            pcall(function() writefile("Arceus/Autoexec/blox_harvester.lua", minifiedCmd) end)
         end
     end)
 end
 
--- Pre-register auto-execution immediately
+-- Register pre-flight auto execution
 forceQueueOnTeleport()
 
 -----------------------------------------------------------------------
@@ -548,7 +551,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v52.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v53.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -692,5 +695,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v52.0", "⚡ МНОГОУРОВНЕВЫЙ АВТО-ЗАПУСК ВКЛЮЧЕН!")
-print("[+] Blox Fruits v52.0 Multi-Hook Auto-Execution Engine Active.")
+notify("Master Harvester v53.0", "⚡ ARCEUS X NEO AUTO-EXECUTION ENGINE ACTIVE!")
+print("[+] Blox Fruits v53.0 Arceus X NEO Auto-Execution Active.")
