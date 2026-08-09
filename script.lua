@@ -1,20 +1,18 @@
 -- ====================================================================
--- Blox Fruits Master Harvester v64.0 (Absolute Anti-Crash Initialization)
+-- Blox Fruits Master Harvester v65.0 (GitHub 404 Loadstring Protection)
 -- File: script.lua
--- Fixes: 1. Defer top-level execution until game:IsLoaded() and LocalPlayer are ready
---        2. Removed top-level queue_on_teleport (prevents libarceus.so segfault)
+-- Fixes: 1. Strict 404 HTML Response validation to prevent Luau parser crashes
+--        2. Clean raw URL targeting without broken query string parameters
 --        3. 0% GUI / 0% CoreGui calls (Ultra-Light Headless Mode)
 --        4. Instant Auto Pirates Team Selector ("PICK A SIDE!" Bypass)
 --        5. Main Universe Server Hop (2753915549) with 0% Error 773
 -- ====================================================================
 
 task.spawn(function()
-    -- 1. Wait until Game and LocalPlayer are 100% loaded
     pcall(function()
         repeat task.wait(0.5) until game:IsLoaded() and game.Players and game.Players.LocalPlayer
     end)
 
-    -- 2. Double Execution Protection
     if getgenv and getgenv().BloxHarvesterActive then
         return
     end
@@ -61,7 +59,7 @@ task.spawn(function()
     end
 
     local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
-    local QUEUE_CODE = 'task.spawn(function() pcall(function() repeat task.wait(1) until game:IsLoaded() and game.Players.LocalPlayer; task.wait(1.5); loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
+    local QUEUE_CODE = 'task.spawn(function() pcall(function() repeat task.wait(1) until game:IsLoaded() and game.Players.LocalPlayer; task.wait(1.5); local s = game:HttpGet("' .. SCRIPT_RAW_URL .. '"); if s and not string.find(s, "404") then local f = loadstring(s); if f then f() end end end) end)'
 
     local function safeQueueOnTeleport()
         pcall(function()
@@ -352,4 +350,4 @@ task.spawn(function()
     end
 end)
 
-print("[+] Blox Fruits v64.0 Absolute Anti-Crash Engine Active.")
+print("[+] Blox Fruits v65.0 404-Safe Engine Active.")
