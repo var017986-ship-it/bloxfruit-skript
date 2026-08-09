@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Fast Server Hopper v48.0
+-- Blox Fruits Master Harvester & Fast Server Hopper v49.0
 -- File: script.lua
--- Fixes: 1. Fixed queue_on_teleport string escaping (100% Auto-Start on New Server for Mobile & PC Executors)
---        2. Autoexec file writer support (writefile autoexec fallback)
---        3. Pure Fruit Harvester & Auto Storage Engine (250 studs/sec Smooth Flight)
---        4. Guaranteed Main Universe Server Hopper (0% Error 773)
---        5. Auto Stat Allocation & Sleek Telemetry Dashboard GUI
+-- Fixes: 1. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
+--        2. Continuous GUI button click + CommF_ SetTeam remote invocation
+--        3. 100% Guaranteed Queue-On-Teleport auto-restarts script on server change
+--        4. Pure Fruit Harvester & Auto Storage Engine (250 studs/sec Smooth Flight)
+--        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -73,7 +73,7 @@ end
 -----------------------------------------------------------------------
 local function registerAutoExecutionOnTeleport()
     local rawUrl = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
-    local queueCmd = 'repeat task.wait(0.5) until game:IsLoaded() task.wait(1) loadstring(game:HttpGet("' .. rawUrl .. '"))()'
+    local queueCmd = 'repeat task.wait(0.2) until game:IsLoaded() task.wait(0.5) loadstring(game:HttpGet("' .. rawUrl .. '"))()'
 
     -- 1. Register queue_on_teleport for all executor global variants
     pcall(function()
@@ -112,15 +112,43 @@ pcall(function()
 end)
 
 -----------------------------------------------------------------------
--- Subsystem: Auto Team Selector (Pirates)
+-- Subsystem: Auto Team Selector ("PICK A SIDE!" Pirates Auto-Clicker)
 -----------------------------------------------------------------------
 local function autoSelectPiratesTeam()
     task.spawn(function()
-        for i = 1, 6 do
+        while true do
+            local teamSelected = false
             pcall(function()
-                local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-                if commF then commF:InvokeServer("SetTeam", "Pirates") end
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                local mainGui = playerGui and playerGui:FindFirstChild("Main")
+                local chooseTeam = mainGui and mainGui:FindFirstChild("ChooseTeam")
+
+                if chooseTeam and chooseTeam.Visible then
+                    -- 1. Invoke SetTeam Remote
+                    local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+                    if commF then commF:InvokeServer("SetTeam", "Pirates") end
+
+                    -- 2. Click Pirates Button in GUI
+                    for _, desc in ipairs(chooseTeam:GetDescendants()) do
+                        if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and string.find(string.lower(desc.Name or desc.Text or ""), "pirate") then
+                            if firesignal then
+                                firesignal(desc.MouseButton1Click)
+                                firesignal(desc.Activated)
+                            end
+                            if getconnections then
+                                for _, c in ipairs(getconnections(desc.MouseButton1Click)) do c:Fire() end
+                                for _, c in ipairs(getconnections(desc.Activated)) do c:Fire() end
+                            end
+                        end
+                    end
+                else
+                    teamSelected = true
+                end
             end)
+
+            if teamSelected then
+                break
+            end
             task.wait(0.3)
         end
     end)
@@ -502,7 +530,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v48.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v49.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -646,5 +674,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v48.0", "⚡ 100% АВТО-ЗАПУСК И АВТО-ИСПОЛНЕНИЕ АКТИВНО!")
-print("[+] Blox Fruits v48.0 Bulletproof Auto-Execution Engine Active.")
+notify("Master Harvester v49.0", "⚡ АВТО-ВЫБОР КОМАНДЫ PIRATES АКТИВЕН!")
+print("[+] Blox Fruits v49.0 Auto Team Auto-Select Active.")
