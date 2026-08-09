@@ -207,14 +207,19 @@ end
 -- Subsystem: Safe Teleport Queue Hook (Executes ONLY during server hop)
 -----------------------------------------------------------------------
 local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
-local QUEUE_CODE = 'task.spawn(function() pcall(function() repeat task.wait(1) until game:IsLoaded() and game.Players and game.Players.LocalPlayer; task.wait(1.5); loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
+local QUEUE_CODE = 'loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))()'
 
 local function safeQueueOnTeleport()
     pcall(function()
-        local q = queue_on_teleport or queueonteleport or (ArceusX and ArceusX.QueueOnTeleport) or (getgenv and getgenv().queue_on_teleport)
-        if q then q(QUEUE_CODE) end
+        if queue_on_teleport then queue_on_teleport(QUEUE_CODE)
+        elseif queueonteleport then queueonteleport(QUEUE_CODE)
+        elseif ArceusX and ArceusX.QueueOnTeleport then ArceusX.QueueOnTeleport(QUEUE_CODE)
+        elseif getgenv and getgenv().queue_on_teleport then getgenv().queue_on_teleport(QUEUE_CODE)
+        end
     end)
 end
+
+safeQueueOnTeleport()
 
 -----------------------------------------------------------------------
 -- Subsystem: Main Universe Guaranteed Server Hopper Engine
