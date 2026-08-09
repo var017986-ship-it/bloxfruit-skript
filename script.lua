@@ -416,8 +416,8 @@ local function checkAndHarvestFruits()
 
     local fruitFound = nil
 
-    for _, object in ipairs(Workspace:GetChildren()) do
-        if object:IsA("Tool") or object:IsA("Model") then
+    for _, object in ipairs(Workspace:GetDescendants()) do
+        if object:IsA("Tool") or (object:IsA("Model") and string.find(object.Name, "Fruit")) then
             local isTarget = false
             for fruitName in pairs(TARGET_FRUITS) do
                 if string.find(object.Name, fruitName) or (string.find(object.Name, "Fruit") and not string.find(object.Name, "Dealer")) then
