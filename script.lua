@@ -1,12 +1,12 @@
 -- ====================================================================
--- Blox Fruits Harvester, Chest Collector & Server Hopper v31.0
+-- Blox Fruits Fruit Harvester & Low-Player Server Hopper v32.0
 -- File: script.lua
 -- Features: 1. Priority Fruit Harvester (Instant Teleport, Pickup & Auto-Store)
---           2. Chest Collector Engine (Auto Farms Silver, Gold & Diamond Chests for Beli)
---           3. Ultra-Low Player Server Hopper (1 to 4 Players ONLY, Paginated 600+ Scan)
---           4. Auto-Dismiss "Server Full" & Error 773 Popups (Auto-Clicks OK & Re-hops)
---           5. Gacha Cousin Fruit Buyer (Auto buys random fruit when Beli >= $250k)
---           6. Auto Stat Point Allocator & Telemetry Dashboard GUI
+--           2. Ultra-Low Player Server Hopper (1 to 4 Players ONLY, Paginated 600+ Scan)
+--           3. Auto-Dismiss "Server Full" & Error 773 Popups (Auto-Clicks OK & Re-hops)
+--           4. Gacha Dealer Cousin Fruit Buyer (Auto buys random fruit when Beli >= $250k)
+--           5. Auto Stat Point Allocator (Melee / Defense / Fruit)
+--           6. Real-Time Telemetry Dashboard GUI
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -32,12 +32,10 @@ local CONFIG_FILE = "BloxFruitsMaster_Config.json"
 -- Master Configuration Flags
 _G.AutoFarmMaster = true
 _G.AutoFruitHarvest = true
-_G.AutoChestFarm = true
 _G.AutoServerHop = true
 _G.AutoGachaFruit = true
 _G.AutoAllocateStats = true
 
-_G.ChestsCollectedCounter = 0
 _G.FruitsCollectedCounter = 0
 
 _G.StatDistribution = {
@@ -53,7 +51,6 @@ pcall(function()
         local data = HttpService:JSONDecode(raw)
         if data then
             if data.AutoFarmMaster ~= nil then _G.AutoFarmMaster = data.AutoFarmMaster end
-            if data.AutoChestFarm ~= nil then _G.AutoChestFarm = data.AutoChestFarm end
             if data.AutoServerHop ~= nil then _G.AutoServerHop = data.AutoServerHop end
         end
     end
@@ -64,7 +61,6 @@ local function saveConfig()
         if writefile then
             writefile(CONFIG_FILE, HttpService:JSONEncode({
                 AutoFarmMaster = _G.AutoFarmMaster,
-                AutoChestFarm = _G.AutoChestFarm,
                 AutoServerHop = _G.AutoServerHop
             }))
         end
@@ -511,56 +507,6 @@ local function autoBuyGachaFruit()
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Chest Harvester Engine (Silver, Gold & Diamond Chests)
------------------------------------------------------------------------
-local function farmChestsStep()
-    scanAndStoreAllHeldFruits()
-    autoAllocateStats()
-
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    local chestFound = nil
-
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") or obj:IsA("Model") then
-            if string.find(obj.Name, "Chest") then
-                local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
-                local touch = obj:FindFirstChildWhichIsA("TouchTransmitter", true) or (part and part:FindFirstChildWhichIsA("TouchTransmitter"))
-                if part and (touch or string.find(obj.Name, "Chest")) then
-                    chestFound = part
-                    break
-                end
-            end
-        end
-    end
-
-    if chestFound then
-        flyTo(chestFound.CFrame)
-        task.wait(0.1)
-        root.CFrame = chestFound.CFrame
-        
-        if firetouchinterest then
-            firetouchinterest(root, chestFound, 0)
-            task.wait(0.05)
-            firetouchinterest(root, chestFound, 1)
-        end
-
-        _G.ChestsCollectedCounter = _G.ChestsCollectedCounter + 1
-        return true
-    else
-        -- No chests left in server -> Hop to low-player server!
-        if _G.AutoServerHop then
-            notify("Chest Harvester", "📦 Все сундуки собраны. Хоп на сервер 1-4 чел...")
-            task.wait(1.0)
-            serverHop()
-        end
-    end
-    return false
-end
-
------------------------------------------------------------------------
 -- Progress Dashboard GUI (Sleek Modern UI)
 -----------------------------------------------------------------------
 if CoreGui:FindFirstChild("BloxMasterDashboard") then
@@ -582,7 +528,7 @@ end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 360, 0, 270)
+MainFrame.Size = UDim2.new(0, 360, 0, 220)
 MainFrame.Position = UDim2.new(0.5, -180, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 17, 24)
 MainFrame.BorderSizePixel = 0
@@ -638,8 +584,8 @@ MinCorner.Parent = MinimizeBtn
 
 -- Fruit Counter Card
 local FruitCard = Instance.new("Frame")
-FruitCard.Size = UDim2.new(1, -28, 0, 40)
-FruitCard.Position = UDim2.new(0, 14, 0, 54)
+FruitCard.Size = UDim2.new(1, -28, 0, 42)
+FruitCard.Position = UDim2.new(0, 14, 0, 56)
 FruitCard.BackgroundColor3 = Color3.fromRGB(22, 26, 38)
 FruitCard.BorderSizePixel = 0
 FruitCard.Parent = MainFrame
@@ -659,33 +605,10 @@ FruitLabel.Font = Enum.Font.SourceSansBold
 FruitLabel.TextSize = 14
 FruitLabel.Parent = FruitCard
 
--- Chest Counter Card
-local ChestCard = Instance.new("Frame")
-ChestCard.Size = UDim2.new(1, -28, 0, 40)
-ChestCard.Position = UDim2.new(0, 14, 0, 100)
-ChestCard.BackgroundColor3 = Color3.fromRGB(22, 26, 38)
-ChestCard.BorderSizePixel = 0
-ChestCard.Parent = MainFrame
-
-local ChestCorner = Instance.new("UICorner")
-ChestCorner.CornerRadius = UDim.new(0, 8)
-ChestCorner.Parent = ChestCard
-
-local ChestLabel = Instance.new("TextLabel")
-ChestLabel.Size = UDim2.new(1, -16, 1, 0)
-ChestLabel.Position = UDim2.new(0, 10, 0, 0)
-ChestLabel.BackgroundTransparency = 1
-ChestLabel.Text = "📦 СУНДУКИ СОБРАНЫ: " .. _G.ChestsCollectedCounter
-ChestLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
-ChestLabel.TextXAlignment = Enum.TextXAlignment.Left
-ChestLabel.Font = Enum.Font.SourceSansBold
-ChestLabel.TextSize = 14
-ChestLabel.Parent = ChestCard
-
 -- Task Status Card
 local TaskStatusCard = Instance.new("Frame")
 TaskStatusCard.Size = UDim2.new(1, -28, 0, 40)
-TaskStatusCard.Position = UDim2.new(0, 14, 0, 146)
+TaskStatusCard.Position = UDim2.new(0, 14, 0, 106)
 TaskStatusCard.BackgroundColor3 = Color3.fromRGB(20, 23, 34)
 TaskStatusCard.BorderSizePixel = 0
 TaskStatusCard.Parent = MainFrame
@@ -697,7 +620,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "⚡ СБОР СУНДУКОВ И ФРУКТОВ..."
+TaskLabel.Text = "⚡ СБОР ФРУКТОВ И ХОП..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -706,9 +629,9 @@ TaskLabel.Parent = TaskStatusCard
 -- Start / Stop Toggle Button
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(1, -28, 0, 42)
-ToggleBtn.Position = UDim2.new(0, 14, 0, 210)
+ToggleBtn.Position = UDim2.new(0, 14, 0, 158)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-ToggleBtn.Text = "🟢 СБОР И ХОППЕР ВКЛЮЧЕН"
+ToggleBtn.Text = "🟢 ХАРВЕСТЕР И ХОППЕР ВКЛЮЧЕН"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 15
@@ -729,7 +652,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
         MainFrame.Size = UDim2.new(0, 360, 0, 44)
         MinimizeBtn.Text = "+"
     else
-        MainFrame.Size = UDim2.new(0, 360, 0, 270)
+        MainFrame.Size = UDim2.new(0, 360, 0, 220)
         MinimizeBtn.Text = "—"
     end
 end)
@@ -738,30 +661,32 @@ ToggleBtn.MouseButton1Click:Connect(function()
     _G.AutoFarmMaster = not _G.AutoFarmMaster
     saveConfig()
     if _G.AutoFarmMaster then
-        ToggleBtn.Text = "🟢 СБОР И ХОППЕР ВКЛЮЧЕН"
+        ToggleBtn.Text = "🟢 ХАРВЕСТЕР И ХОППЕР ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        notify("Master Harvester", "🟢 Сбор запущен")
+        notify("Fruit Harvester", "🟢 Поиск фруктов запущен")
     else
-        ToggleBtn.Text = "🔴 СБОР И ХОППЕР ВЫКЛЮЧЕН"
+        ToggleBtn.Text = "🔴 ХАРВЕСТЕР И ХОППЕР ВЫКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
         TaskLabel.Text = "🔴 СТАТУС: ВЫКЛЮЧЕНО"
-        notify("Master Harvester", "🔴 Сбор остановлен")
+        notify("Fruit Harvester", "🔴 Поиск фруктов остановлен")
     end
 end)
 
 -- Main Loop
 task.spawn(function()
     autoBuyGachaFruit()
+    autoAllocateStats()
 
     while true do
         task.wait(0.3)
         
         pcall(function()
             FruitLabel.Text = "🍊 ФРУКТЫ СОБРАНЫ: " .. _G.FruitsCollectedCounter
-            ChestLabel.Text = "📦 СУНДУКИ СОБРАНЫ: " .. _G.ChestsCollectedCounter
         end)
 
         if _G.AutoFarmMaster then
+            autoAllocateStats()
+
             -- Priority 1: Check for spawned fruits in Workspace
             local fruitHarvested = checkAndHarvestFruits()
             
@@ -770,15 +695,11 @@ task.spawn(function()
                 TaskLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
                 task.wait(1.0)
             else
-                -- Priority 2: Farm chests across the server
-                TaskLabel.Text = "📦 СБОР СУНДУКОВ НА СЕРВЕРЕ..."
-                TaskLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
-                
-                local chestFound = farmChestsStep()
-                if not chestFound and _G.AutoServerHop then
+                -- No fruits found on current server -> Hop to low-player server (1-4 players)!
+                if _G.AutoServerHop then
                     TaskLabel.Text = "🚀 ПОИСК СЕРВЕРА (1-4 ЧЕЛ)..."
                     TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
-                    task.wait(1.0)
+                    task.wait(0.5)
                     serverHop()
                 end
             end
@@ -786,5 +707,5 @@ task.spawn(function()
     end
 end)
 
-notify("Harvester & Hopper v31.0", "⚡ Сбор сундуков, фруктов + Auto-OK Ошибок АКТИВЕН!")
-print("[+] Blox Fruits v31.0 Auto-OK Error Dismiss Engine Active.")
+notify("Harvester & Hopper v32.0", "⚡ Чистый Сбор Фруктов + ХОП (1-4 чел) АКТИВЕН!")
+print("[+] Blox Fruits v32.0 Clean Fruit Harvester Active.")
