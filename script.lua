@@ -1,12 +1,18 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Fast Server Hopper v56.0
+-- Blox Fruits Master Harvester & Fast Server Hopper v57.0
 -- File: script.lua
--- Fixes: 1. Simplified ultra-fast queue_on_teleport loop for instant auto-run on join
---        2. Multi-path autoexec directory writer (makefolder & writefile)
+-- Fixes: 1. Anti-Crash Double-Execution Guard (_G.BloxScriptRunning)
+--        2. Ultra-Safe Memory-Deferred Auto-Execution for Arceus X Autoexec
 --        3. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
 --        4. Pure Fruit Harvester & Auto Storage Engine (140 studs/sec Smooth Flight)
 --        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
+
+if _G.BloxScriptRunning then 
+    warn("[!] Blox Fruits Script is already running on this server session.")
+    return 
+end
+_G.BloxScriptRunning = true
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -69,35 +75,19 @@ local function notify(title, text)
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Ultra-Fast Thread-Safe Auto-Execution Engine
+-- Subsystem: Safe Deferred Auto-Execution Engine
 -----------------------------------------------------------------------
 local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
-local QUEUE_CODE = 'repeat task.wait(0.1) until game:IsLoaded() task.spawn(function() pcall(function() loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
+local QUEUE_CODE = 'task.spawn(function() repeat task.wait(1) until game:IsLoaded() and game.Players.LocalPlayer; task.wait(1.5); pcall(function() loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
 
 local function forceQueueOnTeleport()
-    -- 1. Register queue_on_teleport across all known functions
     pcall(function() if queue_on_teleport then queue_on_teleport(QUEUE_CODE) end end)
     pcall(function() if queueonteleport then queueonteleport(QUEUE_CODE) end end)
     pcall(function() if getgenv and getgenv().queue_on_teleport then getgenv().queue_on_teleport(QUEUE_CODE) end end)
-    pcall(function() if getgenv and getgenv().queueonteleport then getgenv().queueonteleport(QUEUE_CODE) end end)
     pcall(function() if ArceusX and ArceusX.QueueOnTeleport then ArceusX.QueueOnTeleport(QUEUE_CODE) end end)
-    pcall(function() if syn and syn.queue_on_teleport then syn.queue_on_teleport(QUEUE_CODE) end end)
-
-    -- 2. Write to executor disk autoexec paths
-    pcall(function()
-        if makefolder then
-            pcall(function() makefolder("autoexec") end)
-            pcall(function() makefolder("Arceus/autoexec") end)
-        end
-        if writefile then
-            pcall(function() writefile("autoexec/bf_harvester.lua", QUEUE_CODE) end)
-            pcall(function() writefile("autoexec.lua", QUEUE_CODE) end)
-            pcall(function() writefile("Arceus/autoexec/bf_harvester.lua", QUEUE_CODE) end)
-        end
-    end)
 end
 
--- Pre-register auto-execution on load
+-- Pre-register auto-execution
 forceQueueOnTeleport()
 
 -----------------------------------------------------------------------
@@ -538,7 +528,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v56.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v57.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -682,5 +672,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v56.0", "⚡ ULTRA-FAST AUTO-EXECUTION ENGINE ACTIVE!")
-print("[+] Blox Fruits v56.0 Ultra-Fast Auto-Execution Engine Active.")
+notify("Master Harvester v57.0", "⚡ ANTI-CRASH AUTO-EXECUTION ENGINE ACTIVE!")
+print("[+] Blox Fruits v57.0 Anti-Crash Auto-Execution Engine Active.")
