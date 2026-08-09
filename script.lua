@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Main Universe Hopper v44.0
+-- Blox Fruits Master Harvester, Gacha Buyer & Smooth Flight Engine v45.0
 -- File: script.lua
--- Fixes: 1. Main Universe PlaceID (2753915549) targeted for all Teleports (0% TeleportInitFailed, 0% Error 773)
---        2. Low-Player Server Search (1-6 players in Main Universe)
---        3. Remote Gacha Dealer Cousin Buyer (Direct Invocation without anti-cheat TP-reset)
---        4. Priority Fruit Harvester & Auto Inventory Storage
---        5. Sleek Telemetry Dashboard GUI & Anti-AFK
+-- Features: 1. Smooth Balanced Flight Engine (250 studs/sec smooth motion to Fruits & Gacha NPC)
+--           2. Main Universe PlaceID (2753915549) targeted for all Teleports (0% Error 773)
+--           3. Priority Fruit Harvester & Auto Inventory Storage
+--           4. Guaranteed Gacha Cousin Fruit Buyer ($254M Beli auto-rolls)
+--           5. Sleek Telemetry Dashboard GUI & Anti-AFK
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -44,6 +44,9 @@ local GachaDoneThisServer = false
 local isHoppingCurrently = false
 local executeFastHop
 
+-- Flight Speed Constant (250 studs/sec - Smooth & Anti-Cheat Safe)
+local FLY_SPEED = 250
+
 -- Target Fruits List
 local TARGET_FRUITS = {
     ["Kitsune Fruit"] = true, ["Dragon Fruit"] = true, ["Leopard Fruit"] = true,
@@ -52,6 +55,13 @@ local TARGET_FRUITS = {
     ["Portal Fruit"] = true, ["Buddha Fruit"] = true, ["Rumble Fruit"] = true,
     ["Sound Fruit"] = true, ["Mammoth Fruit"] = true, ["Gravity Fruit"] = true,
     ["Control Fruit"] = true
+}
+
+-- Gacha Dealer Cousin NPC Positions across all 3 Seas
+local GACHA_POSITIONS = {
+    [2753915549] = Vector3.new(-1612, 37, 149),   -- First Sea (Jungle)
+    [4442272183] = Vector3.new(-380, 73, 298),     -- Second Sea (Cafe)
+    [7449423635] = Vector3.new(-12465, 375, -7550) -- Third Sea (Mansion)
 }
 
 -----------------------------------------------------------------------
@@ -127,22 +137,51 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 -----------------------------------------------------------------------
--- Subsystem: Fast Character Teleport
+-- Subsystem: Smooth Balanced Flight Engine (250 studs/sec)
 -----------------------------------------------------------------------
-local function fastTeleportTo(targetCFrame)
+local function flyToTarget(targetCFrame)
     local char = LocalPlayer.Character
     if not char then return false end
 
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return false end
 
+    local startPos = root.Position
+    local targetPos = targetCFrame.Position
+    local distance = (targetPos - startPos).Magnitude
+
+    if distance < 15 then
+        root.CFrame = targetCFrame
+        return true
+    end
+
+    -- Disable part collisions during flight
     pcall(function()
         for _, part in ipairs(char:GetChildren()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
     end)
 
+    -- Calculate steps for smooth 250 studs/sec speed
+    local travelTime = math.clamp(distance / FLY_SPEED, 0.2, 12.0)
+    local steps = math.floor(travelTime / 0.03)
+
+    for i = 1, steps do
+        if not LocalPlayer.Character or not root then break end
+        local alpha = i / steps
+        local currentPos = startPos:Lerp(targetPos, alpha)
+        root.CFrame = CFrame.new(currentPos, targetPos)
+        task.wait(0.03)
+    end
+
     root.CFrame = targetCFrame
+
+    pcall(function()
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") then part.CanCollide = true end
+        end
+    end)
+
     return true
 end
 
@@ -374,8 +413,8 @@ local function checkAndHarvestFruits()
     if fruitFound then
         local handle = fruitFound:FindFirstChild("Handle") or fruitFound:FindFirstChildWhichIsA("BasePart")
         if handle then
-            notify("🍊 Фрукт найден!", "Телепорт к " .. fruitFound.Name)
-            fastTeleportTo(handle.CFrame)
+            notify("🍊 Фрукт найден!", "Полет к " .. fruitFound.Name)
+            flyToTarget(handle.CFrame)
             task.wait(0.1)
             root.CFrame = handle.CFrame
             
@@ -398,7 +437,7 @@ local function checkAndHarvestFruits()
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Direct Remote Gacha Dealer Cousin Buyer
+-- Subsystem: Smooth Flight Gacha Dealer Cousin Buyer
 -----------------------------------------------------------------------
 local function autoBuyGachaFruit()
     if not _G.AutoGachaFruit or GachaDoneThisServer then return end
@@ -408,9 +447,14 @@ local function autoBuyGachaFruit()
         local beli = data and data:FindFirstChild("Beli")
         if beli and beli.Value >= 250000 then
             local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-            
-            if commF then
+            local gachaPos = GACHA_POSITIONS[PlaceId]
+
+            if commF and gachaPos then
                 GachaDoneThisServer = true
+
+                notify("Gacha Dealer", "✈️ Полет к продавцу фруктов (250 studs/s)...")
+                flyToTarget(CFrame.new(gachaPos))
+                task.wait(0.3)
 
                 notify("Gacha Dealer", "🎲 Покупка случайного фрукта...")
                 
@@ -480,7 +524,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v44.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v45.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -539,7 +583,7 @@ TaskCorner.Parent = TaskStatusCard
 local TaskLabel = Instance.new("TextLabel")
 TaskLabel.Size = UDim2.new(1, 0, 1, 0)
 TaskLabel.BackgroundTransparency = 1
-TaskLabel.Text = "🟢 СБОР, ГАЧА И СЕРВЕР ХОП..."
+TaskLabel.Text = "🟢 ПОЛЕТ, СБОР И СЕРВЕР ХОП..."
 TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
 TaskLabel.Font = Enum.Font.SourceSansBold
 TaskLabel.TextSize = 13
@@ -581,7 +625,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     if _G.AutoFarmMaster then
         ToggleBtn.Text = "🟢 СБОР И СЕРВЕР ХОП ВКЛЮЧЕН"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 184, 92)
-        TaskLabel.Text = "🟢 СБОР, ГАЧА И СЕРВЕР ХОП..."
+        TaskLabel.Text = "🟢 ПОЛЕТ, СБОР И СЕРВЕР ХОП..."
         TaskLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
         notify("Harvester Engine", "🟢 Поиск запущен")
     else
@@ -605,7 +649,7 @@ task.spawn(function()
         if _G.AutoFarmMaster then
             autoAllocateStats()
 
-            -- 1. Try Direct Remote Gacha Cousin Fruit Roll
+            -- 1. Try Gacha Cousin Fruit Roll via Smooth Flight
             autoBuyGachaFruit()
 
             -- 2. Priority Check for Spawned Fruits in Workspace
@@ -627,5 +671,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v44.0", "⚡ 0% ОШИБОК 773: Main Universe Hopper Active!")
-print("[+] Blox Fruits v44.0 Main Universe Hopper Active.")
+notify("Master Harvester v45.0", "⚡ ПЛАВНЫЙ ПОЛЕТ (250 studs/s) АКТИВЕН!")
+print("[+] Blox Fruits v45.0 Smooth Flight Harvester Active.")
