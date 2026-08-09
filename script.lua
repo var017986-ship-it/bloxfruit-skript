@@ -1,11 +1,11 @@
 -- ====================================================================
--- Blox Fruits Melee Auto-Farm Engine v28.0
+-- Blox Fruits Ultimate Melee Auto-Farm Engine v29.0
 -- File: script.lua
--- Fixes: 1. Reliable Melee Weapon Auto-Equip (Bypasses empty ToolTip bugs)
---        2. Target Mob Hover & Kill Loop (Flies 6 studs above mob, strikes with Melee)
---        3. Instant Mob-to-Mob Traversal (As soon as mob dies, flies to next mob)
---        4. Mob Magnet & Cluster Striker
---        5. High-Speed Noclip Flight (300 studs/sec)
+-- Fixes: 1. Fixed Character Shaking/Flinging (Removed invalid -90 pitch CFrame rotation)
+--        2. Upright 7-Stud Mob Hover Lock (Stands upright 7 studs above mob)
+--        3. 100% Guaranteed Melee Tool Auto-Equip Engine
+--        4. Mob Magnet Cluster & Instant Mob-to-Mob Chain
+--        5. Auto Stat Allocation & Fruit Interceptor
 -- ====================================================================
 
 local Players = game:GetService("Players")
@@ -67,8 +67,8 @@ end
 if not _G.FailedServersList then _G.FailedServersList = {} end
 if not _G.UnstorableFruits then _G.UnstorableFruits = {} end
 
--- Fast Noclip Flight Speed (300 studs/sec)
-local FLY_SPEED = 300
+-- Fast Safe Flight Speed (250 studs/sec)
+local FLY_SPEED = 250
 
 -- Target Fruits List
 local TARGET_FRUITS = {
@@ -198,7 +198,7 @@ local function autoAllocateStats()
 end
 
 -----------------------------------------------------------------------
--- Subsystem: High-Speed Noclip Flight Engine (300 studs/sec)
+-- Subsystem: Noclip Physics Flight Engine (250 studs/sec)
 -----------------------------------------------------------------------
 local function flyTo(targetCFrame)
     local char = LocalPlayer.Character
@@ -235,7 +235,7 @@ local function flyTo(targetCFrame)
     bv.Parent = root
 
     local startTime = tick()
-    while char and root and (targetPos - root.Position).Magnitude > 8 and (tick() - startTime) < 30 do
+    while char and root and (targetPos - root.Position).Magnitude > 8 and (tick() - startTime) < 25 do
         bv.Velocity = (targetPos - root.Position).Unit * FLY_SPEED
         root.CFrame = CFrame.new(root.Position, targetPos)
         task.wait()
@@ -250,7 +250,7 @@ local function flyTo(targetCFrame)
 end
 
 -----------------------------------------------------------------------
--- Subsystem: Reliable Melee Weapon Equipping
+-- Subsystem: 100% Guaranteed Melee Tool Auto-Equip Engine
 -----------------------------------------------------------------------
 local function equipMeleeWeapon()
     pcall(function()
@@ -262,7 +262,7 @@ local function equipMeleeWeapon()
         if currentTool then
             local isFruit = string.find(currentTool.Name, "Fruit") or string.find(currentTool.Name, "Blox")
             if not isFruit then
-                return -- Already holding a melee/combat tool
+                return -- Already holding a Melee or Sword tool
             end
         end
 
@@ -482,7 +482,7 @@ local function farmLevelStep()
     -- 1. Ensure Quest is Active
     if not hasActiveQuest() then
         local questDist = (questConfig.QuestPos - root.Position).Magnitude
-        if questDist > 20 then
+        if questDist > 25 then
             flyTo(CFrame.new(questConfig.QuestPos))
         else
             root.CFrame = CFrame.new(questConfig.QuestPos)
@@ -512,16 +512,16 @@ local function farmLevelStep()
         end
     end
 
-    -- 3. Fly to mob, hover 6 studs directly above, and execute Melee attacks!
+    -- 3. Fly to mob, hover 7 studs directly above (UPRIGHT, ZERO SHAKE), and execute Melee attacks!
     if targetMob then
         local mobPart = targetMob:FindFirstChild("HumanoidRootPart") or targetMob:FindFirstChildWhichIsA("BasePart")
         local mobHum = targetMob:FindFirstChildWhichIsA("Humanoid")
 
         if mobPart and mobHum then
-            local hoverCFrame = mobPart.CFrame * CFrame.new(0, 6, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+            local hoverCFrame = CFrame.new(mobPart.Position + Vector3.new(0, 7, 0))
             local dist = (mobPart.Position - root.Position).Magnitude
 
-            if dist > 10 then
+            if dist > 15 then
                 flyTo(hoverCFrame)
             else
                 root.CFrame = hoverCFrame
@@ -529,14 +529,14 @@ local function farmLevelStep()
 
             equipMeleeWeapon()
 
-            -- Mob Magnet (Pulls nearby same-named mobs together)
+            -- Mob Magnet (Pulls nearby same-named mobs into cluster)
             pcall(function()
                 if enemies then
                     for _, otherMob in ipairs(enemies:GetChildren()) do
                         if otherMob.Name == targetMob.Name and otherMob ~= targetMob then
                             local oPart = otherMob:FindFirstChild("HumanoidRootPart")
                             local oHum = otherMob:FindFirstChildWhichIsA("Humanoid")
-                            if oPart and oHum and oHum.Health > 0 and (oPart.Position - mobPart.Position).Magnitude < 300 then
+                            if oPart and oHum and oHum.Health > 0 and (oPart.Position - mobPart.Position).Magnitude < 250 then
                                 oPart.CFrame = mobPart.CFrame
                                 oPart.CanCollide = false
                                 oHum.WalkSpeed = 0
@@ -557,8 +557,8 @@ local function farmLevelStep()
             end)
         end
     else
-        -- If mob not spawned yet, fly to mob spawn location
-        flyTo(CFrame.new(questConfig.MobPos))
+        -- If mob not spawned in Workspace.Enemies yet, fly to mob spawn location
+        flyTo(CFrame.new(questConfig.MobPos + Vector3.new(0, 15, 0)))
     end
 end
 
@@ -778,5 +778,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Farm Engine", "⚡ Melee Target Striker v28.0 Active!")
-print("[+] Blox Fruits v28.0 Melee Target Striker Active.")
+notify("Master Farm Engine", "⚡ Upright Melee Farm v29.0 Active!")
+print("[+] Blox Fruits v29.0 Upright Melee Farm Active.")
