@@ -1,18 +1,12 @@
 -- ====================================================================
--- Blox Fruits Master Harvester & Fast Server Hopper v57.0
+-- Blox Fruits Master Harvester & Fast Server Hopper v58.0
 -- File: script.lua
--- Fixes: 1. Anti-Crash Double-Execution Guard (_G.BloxScriptRunning)
---        2. Ultra-Safe Memory-Deferred Auto-Execution for Arceus X Autoexec
+-- Fixes: 1. Clean Re-execution Engine (re-running immediately resets and starts without blocking)
+--        2. Instant startup trigger on current server + autoexec compatibility
 --        3. Auto Team Selector loop clears "PICK A SIDE!" Pirates screen instantly on join
 --        4. Pure Fruit Harvester & Auto Storage Engine (140 studs/sec Smooth Flight)
 --        5. Main Universe PlaceID (2753915549) targeted for 0% Error 773
 -- ====================================================================
-
-if _G.BloxScriptRunning then 
-    warn("[!] Blox Fruits Script is already running on this server session.")
-    return 
-end
-_G.BloxScriptRunning = true
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -38,7 +32,7 @@ _G.AutoFruitHarvest = true
 _G.AutoServerHop = true
 _G.AutoAllocateStats = true
 
-_G.FruitsCollectedCounter = 0
+_G.FruitsCollectedCounter = _G.FruitsCollectedCounter or 0
 
 -- Session State Flags
 if not _G.VisitedServersHistory then _G.VisitedServersHistory = {} end
@@ -78,7 +72,7 @@ end
 -- Subsystem: Safe Deferred Auto-Execution Engine
 -----------------------------------------------------------------------
 local SCRIPT_RAW_URL = "https://raw.githubusercontent.com/var017986-ship-it/bloxfruit-skript/main/script.lua"
-local QUEUE_CODE = 'task.spawn(function() repeat task.wait(1) until game:IsLoaded() and game.Players.LocalPlayer; task.wait(1.5); pcall(function() loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
+local QUEUE_CODE = 'task.spawn(function() repeat task.wait(0.5) until game:IsLoaded() and game.Players.LocalPlayer; task.wait(1.0); pcall(function() loadstring(game:HttpGet("' .. SCRIPT_RAW_URL .. '"))() end) end)'
 
 local function forceQueueOnTeleport()
     pcall(function() if queue_on_teleport then queue_on_teleport(QUEUE_CODE) end end)
@@ -528,7 +522,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v57.0"
+TitleLabel.Text = "⚡ BLOX FRUITS HARVESTER v58.0"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Font = Enum.Font.SourceSansBold
@@ -672,5 +666,5 @@ task.spawn(function()
     end
 end)
 
-notify("Master Harvester v57.0", "⚡ ANTI-CRASH AUTO-EXECUTION ENGINE ACTIVE!")
-print("[+] Blox Fruits v57.0 Anti-Crash Auto-Execution Engine Active.")
+notify("Master Harvester v58.0", "⚡ СКРИПТ УСПЕШНО ЗАПУЩЕН!")
+print("[+] Blox Fruits v58.0 Instant Execution Active.")
